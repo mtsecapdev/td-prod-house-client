@@ -5,6 +5,7 @@ import documentsServices from './services/documentsServices';
 function App() {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [error, setError] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
     async function fetchDocumentsWrapperAsync() {
@@ -24,10 +25,23 @@ function App() {
     };
   }, []);
 
+  // TODO: try/catch in the awaits to render errors
+  // TODO: give loading feedback for upload and query
+
   async function handleDeleteDocument(e) {
-    const idToDelete = e.target.name;
-    const deleted = await documentsServices.deleteDocumentAsync(idToDelete);
+    const idToDelete = e.currentTarget.name;
+    await documentsServices.deleteDocumentAsync(idToDelete);
     setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
+  }
+
+  async function handleUploadDocument(e) {
+    e.preventDefault();
+    // Send selectedFile to documentServices
+    await documentsServices.uploadDocument(selectedFile);
+    // Re get setUploadedDocuments
+    setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
+    // Set selectedFile null
+    setSelectedFile(null);
   }
 
   return (
@@ -60,6 +74,20 @@ function App() {
           ))}
         </ul>
       )}
+
+      {/* File uploading component */}
+      <form onSubmit={handleUploadDocument}>
+        <input
+          type='file'
+          onChange={(e) => {
+            // Set the selectedFile state
+            setSelectedFile(e.target.files[0]);
+          }}
+        />
+        <button type='submit' disabled={selectedFile === null}>
+          Upload
+        </button>
+      </form>
     </div>
   );
 }
