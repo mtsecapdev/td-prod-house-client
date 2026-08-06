@@ -4,17 +4,23 @@ import documentsServices from './services/documentsServices';
 
 function App() {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     async function fetchDocumentsWrapperAsync() {
-      const docs = await documentsServices.getAllDocumentsAsync();
-      setUploadedDocuments(docs);
+      try {
+        const docs = await documentsServices.getAllDocumentsAsync();
+        setUploadedDocuments(docs);
+      } catch (error) {
+        setError(error);
+      }
     }
 
     fetchDocumentsWrapperAsync();
 
     return () => {
       setUploadedDocuments([]);
+      setError(null);
       console.log('Clean up completed');
     };
   }, []);
