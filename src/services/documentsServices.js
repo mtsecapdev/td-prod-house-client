@@ -46,6 +46,32 @@ async function uploadDocument(file) {
 }
 
 // POST a query
+// Get the query
+// Also get the selected documents
+async function sendQuery(query, docIdsToReference) {
+  try {
+    const queryUrl = new URL('documents/query', BASE_API_URL);
+    const res = await fetch(queryUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        docIdsToReference,
+      }),
+    });
+    const { data } = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message);
+    }
+
+    return data.message;
+  } catch (error) {
+    throw new Error(error.message || 'Unable to reach the server');
+  }
+}
 
 // DELETE one document
 /**
@@ -78,4 +104,5 @@ export default {
   getAllDocumentsAsync,
   deleteDocumentAsync,
   uploadDocument,
+  sendQuery,
 };

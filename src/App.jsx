@@ -4,15 +4,15 @@ import documentsServices from './services/documentsServices';
 
 function App() {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
-  const [error, setError] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [queryResult, setQueryResult] = useState(null);
 
   useEffect(() => {
     async function fetchDocumentsWrapperAsync() {
       try {
         setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
       } catch (error) {
-        setError(error);
+        console.log('Error fetching documents');
       }
     }
 
@@ -20,7 +20,6 @@ function App() {
 
     return () => {
       setUploadedDocuments([]);
-      setError(null);
       console.log('Clean up completed');
     };
   }, []);
@@ -44,13 +43,21 @@ function App() {
     setSelectedFile(null);
   }
 
+  // Dont allow sending if no documents selected
+  async function handleQuerySubmit(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    // Get the query value
+    const query = formData.get('query');
+    // Get the ids of what was ticked into an array
+    const docIdsToReference = formData.getAll('document-checkbox').map(Number);
+    setQueryResult(await documentsServices.sendQuery(query, docIdsToReference));
+  }
+
   return (
     <div>
-      {error ? (
-        <div>
-          Error: {error.status} {error.message}
-        </div>
-      ) : (
+      <form onSubmit={handleQuerySubmit}>
+        <textarea name='query' id='query' cols='30' rows='10'></textarea>
         <ul>
           {uploadedDocuments.map((doc) => (
             // Something a little confusing:
@@ -60,7 +67,12 @@ function App() {
             // Then because the name is more unique, I use that as the identifier.
             <li key={doc.name}>
               <label htmlFor={doc.name}>
-                <input type='checkbox' name={doc.id} id={doc.name} />
+                <input
+                  type='checkbox'
+                  name='document-checkbox'
+                  id={doc.name}
+                  value={doc.id}
+                />
                 {doc.name}; Uploaded at {doc['uploaded_at']}
               </label>
               <button
@@ -73,7 +85,13 @@ function App() {
             </li>
           ))}
         </ul>
-      )}
+        {queryResult && (
+          <div>
+            <div>Model Answer: {queryResult.modelResponse}</div>
+          </div>
+        )}
+        <button type='submit'>Submit</button>
+      </form>
 
       {/* File uploading component */}
       <form onSubmit={handleUploadDocument}>
