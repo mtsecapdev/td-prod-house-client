@@ -25,6 +25,12 @@ function App() {
     };
   }, []);
 
+  async function handleDeleteDocument(e) {
+    const idToDelete = e.target.name;
+    const deleted = await documentsServices.deleteDocumentAsync(idToDelete);
+    setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
+  }
+
   return (
     <div>
       {error ? (
@@ -40,10 +46,17 @@ function App() {
             // This is cos I want to send over the doc.id number which the backend will use to select the right documents.
             // Then because the name is more unique, I use that as the identifier.
             <li key={doc.name}>
-              <input type='checkbox' name={doc.id} id={doc.name} />
               <label htmlFor={doc.name}>
+                <input type='checkbox' name={doc.id} id={doc.name} />
                 {doc.name}; Uploaded at {doc['uploaded_at']}
               </label>
+              <button
+                type='button'
+                onClick={handleDeleteDocument}
+                name={doc.id}
+              >
+                Delete
+              </button>
             </li>
           ))}
         </ul>

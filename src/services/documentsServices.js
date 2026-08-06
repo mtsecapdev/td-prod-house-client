@@ -27,7 +27,33 @@ async function getAllDocumentsAsync() {
 // POST a query
 
 // DELETE one document
+/**
+ *
+ * @param {string} id
+ * @returns Object containing the deleted document's properties.
+ */
+async function deleteDocumentAsync(id) {
+  try {
+    const deleteUrl = new URL(`documents/${id}`, BASE_API_URL);
+    const res = await fetch(deleteUrl, {
+      method: 'DELETE',
+    });
+    // All the server side code was coded to always return a "data" object property in the response
+    const { data } = await res.json();
+
+    // For any non-2XX status code responses.
+    if (!res.ok) {
+      throw new Error(data.message);
+    }
+
+    return data.message.deletedDocument;
+  } catch (error) {
+    // The default message is if we encounter any non-server handled errors
+    throw new Error(error.message || 'Unable to reach the server');
+  }
+}
 
 export default {
   getAllDocumentsAsync,
+  deleteDocumentAsync,
 };
