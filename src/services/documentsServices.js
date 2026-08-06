@@ -23,6 +23,27 @@ async function getAllDocumentsAsync() {
 }
 
 // POST one document
+async function uploadDocument(file) {
+  try {
+    const formData = new FormData();
+    formData.append('uploaded_file', file);
+
+    const uploadUrl = new URL('documents/upload', BASE_API_URL);
+    const res = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+    });
+    const { data } = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message);
+    }
+
+    return data.message;
+  } catch (error) {
+    throw new Error(error.message || 'Unable to reach the server');
+  }
+}
 
 // POST a query
 
@@ -56,4 +77,5 @@ async function deleteDocumentAsync(id) {
 export default {
   getAllDocumentsAsync,
   deleteDocumentAsync,
+  uploadDocument,
 };
