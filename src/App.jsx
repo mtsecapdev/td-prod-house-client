@@ -9,8 +9,7 @@ function App() {
   useEffect(() => {
     async function fetchDocumentsWrapperAsync() {
       try {
-        const docs = await documentsServices.getAllDocumentsAsync();
-        setUploadedDocuments(docs);
+        setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
       } catch (error) {
         setError(error);
       }
