@@ -7,6 +7,7 @@ function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [queryResult, setQueryResult] = useState(null);
 
+  // To retrieve any uploaded documents within the database on first load.
   useEffect(() => {
     async function fetchDocumentsWrapperAsync() {
       try {
@@ -59,12 +60,9 @@ function App() {
       <form onSubmit={handleQuerySubmit}>
         <textarea name='query' id='query' cols='30' rows='10'></textarea>
         <ul>
+          {console.log(uploadedDocuments)}
+          {/* Shape of a doc: {id (unique identifier), name (pdf name), uploaded_at} */}
           {uploadedDocuments.map((doc) => (
-            // Something a little confusing:
-            // Realise that I use the doc.name as the unique identifier i.e. value of the li key, input id, htmlFor etc.
-            // while I then give the input's 'name' a value of the doc.id.
-            // This is cos I want to send over the doc.id number which the backend will use to select the right documents.
-            // Then because the name is more unique, I use that as the identifier.
             <li key={doc.name}>
               <label htmlFor={doc.name}>
                 <input
