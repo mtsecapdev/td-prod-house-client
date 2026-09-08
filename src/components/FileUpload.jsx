@@ -5,17 +5,25 @@ export default function FileUpload({ setUploadedDocuments }) {
   // TODO: allow upload more than 1 file at a time.
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   async function handleUploadDocument(e) {
     e.preventDefault();
-    // Send selectedFile to documentServices
-    await documentsServices.uploadDocument(selectedFile);
-    // Re get setUploadedDocuments
-    setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
-    // Set selectedFile null
-    setSelectedFile(null);
-    // Direct DOM manipulation cos we have a ref to the input to set the value back to null upon successful file upload.
-    fileInputRef.current.value = '';
+    setIsUploading(true);
+    try {
+      // Send selectedFile to documentServices
+      await documentsServices.uploadDocument(selectedFile);
+      // Re get setUploadedDocuments
+      setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
+      // Set selectedFile null
+      setSelectedFile(null);
+      // Direct DOM manipulation cos we have a ref to the input to set the value back to null upon successful file upload.
+      fileInputRef.current.value = '';
+    } catch (error) {
+      console.log(`Error in FileUpload: ${error}`);
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   // Form that allows user to upload a file
@@ -28,9 +36,10 @@ export default function FileUpload({ setUploadedDocuments }) {
           // Set the selectedFile state
           setSelectedFile(e.target.files[0]);
         }}
+        disabled={isUploading}
       />
-      <button type='submit' disabled={selectedFile === null}>
-        Upload
+      <button type='submit' disabled={selectedFile === null || isUploading}>
+        {isUploading ? 'Uploading...' : 'Upload File'}
       </button>
     </form>
   );
