@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 
 import documentsServices from './services/documentsServices';
 
+import FileUpload from './components/FileUpload.jsx';
+
 function App() {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
   const [queryResult, setQueryResult] = useState(null);
 
   // To retrieve any uploaded documents within the database on first load.
@@ -32,16 +33,6 @@ function App() {
     const idToDelete = e.currentTarget.name;
     await documentsServices.deleteDocumentAsync(idToDelete);
     setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
-  }
-
-  async function handleUploadDocument(e) {
-    e.preventDefault();
-    // Send selectedFile to documentServices
-    await documentsServices.uploadDocument(selectedFile);
-    // Re get setUploadedDocuments
-    setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
-    // Set selectedFile null
-    setSelectedFile(null);
   }
 
   // Dont allow sending if no documents selected
@@ -91,19 +82,7 @@ function App() {
         <button type='submit'>Submit</button>
       </form>
 
-      {/* File uploading component */}
-      <form onSubmit={handleUploadDocument}>
-        <input
-          type='file'
-          onChange={(e) => {
-            // Set the selectedFile state
-            setSelectedFile(e.target.files[0]);
-          }}
-        />
-        <button type='submit' disabled={selectedFile === null}>
-          Upload
-        </button>
-      </form>
+      <FileUpload setUploadedDocuments={setUploadedDocuments} />
     </div>
   );
 }
