@@ -7,7 +7,6 @@ const BASE_API_URL = import.meta.env.VITE_API_BASE_URL;
 async function getAllDocumentsAsync() {
   try {
     const res = await fetch(BASE_API_URL);
-    // All the server side code was coded to always return a "data" object property in the response
     const { data } = await res.json();
 
     // For any non-2XX status code responses.
