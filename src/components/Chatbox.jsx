@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Chat } from '@/components/ui/chat';
 import documentsServices from '../services/documentsServices';
 
-export default function Chatbox() {
+export default function Chatbox({ docIdsToReference }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
 
@@ -37,17 +37,29 @@ export default function Chatbox() {
     setInput('');
 
     try {
-      const modelResponse = await documentsServices.sendQuery(
+      const data = await documentsServices.sendQuery(
         newUserMessage.content,
         docIdsToReference,
         messagesWithUserInput.slice(0, -1),
       );
-      setMessages((prev) => [
-        ...prev,
+      /**
+       * shape of modelResponse is per the server code:
+       * {
+       *  originalQuery: string,
+       *  modelResponse: {role, content},
+       *  history: {role, content}[],
+       *  chunks: {docId:
+       *            {document_id, content, similarity}[]
+       *  }
+       *  avgConfidenceScore: number
+       * }
+       **/
+      setMessages([
+        ...messagesWithUserInput,
         {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: modelResponse,
+          content: data.modelResponse.content,
         },
       ]);
     } catch (error) {
