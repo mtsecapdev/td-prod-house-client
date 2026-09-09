@@ -47,7 +47,7 @@ async function uploadDocument(file) {
 // POST a query
 // Get the query
 // Also get the selected documents
-async function sendQuery(query, docIdsToReference) {
+async function sendQuery(query, docIdsToReference, history) {
   try {
     const queryUrl = new URL('documents/query', BASE_API_URL);
     const res = await fetch(queryUrl, {
@@ -58,6 +58,7 @@ async function sendQuery(query, docIdsToReference) {
       body: JSON.stringify({
         query,
         docIdsToReference,
+        history,
       }),
     });
     const { data } = await res.json();
@@ -66,7 +67,7 @@ async function sendQuery(query, docIdsToReference) {
       throw new Error(data.message);
     }
 
-    return data.message;
+    return data;
   } catch (error) {
     throw new Error(error.message || 'Unable to reach the server');
   }
