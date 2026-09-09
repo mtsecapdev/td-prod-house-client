@@ -38,7 +38,7 @@ export default function DocumentList({
   }
 
   return (
-    <FieldSet>
+    <FieldSet className='border-r border-gray-300 p-4'>
       <FieldLegend variant='label'>
         Please select a document to query about:
       </FieldLegend>
@@ -54,7 +54,7 @@ export default function DocumentList({
               }
             />
             <FieldLabel htmlFor={d.name} className='font-normal'>
-              {`${d.name}; Uploaded at: ${d.uploaded_at}`}
+              {`${d.name}`}
             </FieldLabel>
             <Button onClick={(e) => handleDeleteDocument(d.id)}>Delete</Button>
           </Field>
