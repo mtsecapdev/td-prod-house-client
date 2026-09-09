@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { Button } from '@/components/ui/button';
 import documentsServices from '../services/documentsServices.js';
 
 export default function FileUpload({ setUploadedDocuments }) {
@@ -37,10 +38,23 @@ export default function FileUpload({ setUploadedDocuments }) {
           setSelectedFile(e.target.files[0]);
         }}
         disabled={isUploading}
+        className='hidden'
       />
-      <button type='submit' disabled={selectedFile === null || isUploading}>
+      {/* Hide the <input> because it becomes unstyled; use below Button and useRef to proxy click it. */}
+      <Button
+        type='button'
+        variant='outline'
+        disabled={isUploading}
+        onClick={() => fileInputRef.current.click()}
+      >
+        Choose File
+      </Button>
+      <span className='text-sm text-muted-foreground truncate max-w-48'>
+        {selectedFile ? selectedFile.name : 'No file chosen'}
+      </span>
+      <Button type='submit' disabled={selectedFile === null || isUploading}>
         {isUploading ? 'Uploading...' : 'Upload File'}
-      </button>
+      </Button>
     </form>
   );
 }
