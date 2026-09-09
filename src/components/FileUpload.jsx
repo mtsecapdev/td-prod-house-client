@@ -41,20 +41,22 @@ export default function FileUpload({ setUploadedDocuments }) {
         className='hidden'
       />
       {/* Hide the <input> because it becomes unstyled; use below Button and useRef to proxy click it. */}
-      <Button
-        type='button'
-        variant='outline'
-        disabled={isUploading}
-        onClick={() => fileInputRef.current.click()}
-      >
-        Choose File
-      </Button>
-      <span className='text-sm text-muted-foreground truncate max-w-48'>
-        {selectedFile ? selectedFile.name : 'No file chosen'}
-      </span>
-      <Button type='submit' disabled={selectedFile === null || isUploading}>
-        {isUploading ? 'Uploading...' : 'Upload File'}
-      </Button>
+      <div className='flex gap-8 justify-items-center'>
+        <Button
+          type='button'
+          variant='outline'
+          disabled={isUploading}
+          onClick={() => fileInputRef.current.click()}
+        >
+          Choose File
+        </Button>
+        <div className='text-sm text-muted-foreground truncate max-w-48 flex items-center'>
+          {selectedFile ? selectedFile.name : 'No file chosen'}
+        </div>
+        <Button type='submit' disabled={selectedFile === null || isUploading}>
+          {isUploading ? 'Uploading...' : 'Upload File'}
+        </Button>
+      </div>
     </form>
   );
 }
