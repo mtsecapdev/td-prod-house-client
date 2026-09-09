@@ -29,13 +29,15 @@ function App() {
   }, []);
 
   return (
-    <div>
-      <Chatbox docIdsToReference={selectedDocumentIds} />
-      <DocumentList
-        uploadedDocuments={uploadedDocuments}
-        setUploadedDocuments={setUploadedDocuments}
-        setSelectedDocumentIds={setSelectedDocumentIds}
-      />
+    <div className='max-w-5xl mx-auto w-full h-screen flex flex-col p-4 justify-evenly'>
+      <div className='grid grid-cols-[250px_1fr] gap-6'>
+        <DocumentList
+          uploadedDocuments={uploadedDocuments}
+          setUploadedDocuments={setUploadedDocuments}
+          setSelectedDocumentIds={setSelectedDocumentIds}
+        />
+        <Chatbox docIdsToReference={selectedDocumentIds} />
+      </div>
       <FileUpload setUploadedDocuments={setUploadedDocuments} />
     </div>
   );
