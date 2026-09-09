@@ -74,6 +74,7 @@ export default function Chatbox({ docIdsToReference }) {
       handleInputChange={handleInputChange}
       handleSubmit={handleSubmit}
       stop={() => {}}
+      className='h-[500px]'
     />
   );
 }
