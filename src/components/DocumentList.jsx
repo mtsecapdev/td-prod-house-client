@@ -29,8 +29,12 @@ export default function DocumentList({
 
   // Handle deleting of documents
   async function handleDeleteDocument(idToDelete) {
-    await documentsServices.deleteDocumentAsync(idToDelete);
-    setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
+    try {
+      await documentsServices.deleteDocumentAsync(idToDelete);
+      setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
+    } catch (error) {
+      console.log('DocumentList delete error: ' + error);
+    }
   }
 
   return (
