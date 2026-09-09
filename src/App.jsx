@@ -9,7 +9,6 @@ import DocumentList from './components/DocumentList.jsx';
 function App() {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
-  const [queryResult, setQueryResult] = useState(null);
 
   // To retrieve any uploaded documents within the database on first load.
   useEffect(() => {
@@ -29,29 +28,9 @@ function App() {
     };
   }, []);
 
-  // TODO: try/catch in the awaits to render errors
-  // TODO: give loading feedback for upload and query
-
-  async function handleDeleteDocument(e) {
-    const idToDelete = e.currentTarget.name;
-    await documentsServices.deleteDocumentAsync(idToDelete);
-    setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
-  }
-
-  // Dont allow sending if no documents selected
-  async function handleQuerySubmit(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    // Get the query value
-    const query = formData.get('query');
-    // Get the ids of what was ticked into an array
-    const docIdsToReference = formData.getAll('document-checkbox').map(Number);
-    setQueryResult(await documentsServices.sendQuery(query, docIdsToReference));
-  }
-
   return (
     <div>
-      <Chatbox />
+      <Chatbox docIdsToReference={selectedDocumentIds} />
       <DocumentList
         uploadedDocuments={uploadedDocuments}
         setUploadedDocuments={setUploadedDocuments}
