@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import documentsServices from './services/documentsServices';
 
 import FileUpload from './components/FileUpload.jsx';
+import Chatbox from './components/Chatbox.jsx';
 
 function App() {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
@@ -48,6 +49,7 @@ function App() {
 
   return (
     <div>
+      <Chatbox />
       <form onSubmit={handleQuerySubmit}>
         <textarea name='query' id='query' cols='30' rows='10'></textarea>
         <ul>
