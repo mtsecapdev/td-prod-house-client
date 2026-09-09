@@ -4,9 +4,11 @@ import documentsServices from './services/documentsServices';
 
 import FileUpload from './components/FileUpload.jsx';
 import Chatbox from './components/Chatbox.jsx';
+import DocumentList from './components/DocumentList.jsx';
 
 function App() {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
   const [queryResult, setQueryResult] = useState(null);
 
   // To retrieve any uploaded documents within the database on first load.
@@ -50,40 +52,11 @@ function App() {
   return (
     <div>
       <Chatbox />
-      <form onSubmit={handleQuerySubmit}>
-        <textarea name='query' id='query' cols='30' rows='10'></textarea>
-        <ul>
-          {console.log(uploadedDocuments)}
-          {/* Shape of a doc: {id (unique identifier), name (pdf name), uploaded_at} */}
-          {uploadedDocuments.map((doc) => (
-            <li key={doc.name}>
-              <label htmlFor={doc.name}>
-                <input
-                  type='checkbox'
-                  name='document-checkbox'
-                  id={doc.name}
-                  value={doc.id}
-                />
-                {doc.name}; Uploaded at {doc['uploaded_at']}
-              </label>
-              <button
-                type='button'
-                onClick={handleDeleteDocument}
-                name={doc.id}
-              >
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
-        {queryResult && (
-          <div>
-            <div>Model Answer: {queryResult.modelResponse}</div>
-          </div>
-        )}
-        <button type='submit'>Submit</button>
-      </form>
-
+      <DocumentList
+        uploadedDocuments={uploadedDocuments}
+        setUploadedDocuments={setUploadedDocuments}
+        setSelectedDocumentIds={setSelectedDocumentIds}
+      />
       <FileUpload setUploadedDocuments={setUploadedDocuments} />
     </div>
   );
