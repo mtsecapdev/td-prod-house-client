@@ -19,7 +19,7 @@ export default function Brief() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    documents.list().then((d) => setDocs(d.message?.docs || d.docs || d || [])).catch(() => {});
+    documents.list().then((d) => setDocs(d.docs || d || [])).catch(() => {});
   }, []);
 
   function toggleDoc(id) {
