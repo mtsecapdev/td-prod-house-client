@@ -1,46 +1,23 @@
-import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
+import Home from './pages/Home';
+import Brief from './pages/Brief';
+import Outline from './pages/Outline';
+import Progress from './pages/Progress';
+import Review from './pages/Review';
 
-import documentsServices from './services/documentsServices';
-
-import FileUpload from './components/FileUpload.jsx';
-import Chatbox from './components/Chatbox.jsx';
-import DocumentList from './components/DocumentList.jsx';
-
-function App() {
-  const [uploadedDocuments, setUploadedDocuments] = useState([]);
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
-
-  // To retrieve any uploaded documents within the database on first load.
-  useEffect(() => {
-    async function fetchDocumentsWrapperAsync() {
-      try {
-        setUploadedDocuments(await documentsServices.getAllDocumentsAsync());
-      } catch (error) {
-        console.log('Error fetching documents');
-      }
-    }
-
-    fetchDocumentsWrapperAsync();
-
-    return () => {
-      setUploadedDocuments([]);
-      console.log('Clean up completed');
-    };
-  }, []);
-
+export default function App() {
   return (
-    <div className='max-w-5xl mx-auto w-full h-screen flex flex-col p-4 justify-evenly'>
-      <div className='grid grid-cols-[250px_1fr] gap-6'>
-        <DocumentList
-          uploadedDocuments={uploadedDocuments}
-          setUploadedDocuments={setUploadedDocuments}
-          setSelectedDocumentIds={setSelectedDocumentIds}
-        />
-        <Chatbox docIdsToReference={selectedDocumentIds} />
-      </div>
-      <FileUpload setUploadedDocuments={setUploadedDocuments} />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="create/deck" element={<Brief />} />
+          <Route path="create/deck/:id/outline" element={<Outline />} />
+          <Route path="create/deck/:id/progress" element={<Progress />} />
+          <Route path="create/deck/:id/review" element={<Review />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;
