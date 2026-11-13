@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { UploadProvider } from './contexts/UploadContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Brief from './pages/Brief';
@@ -15,32 +16,36 @@ import ImageReview from './pages/ImageReview';
 import InfographicBrief from './pages/InfographicBrief';
 import InfographicProgress from './pages/InfographicProgress';
 import InfographicReview from './pages/InfographicReview';
+import Chat from './pages/Chat';
 import Library from './pages/Library';
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path="library" element={<Library />} />
-          <Route path="create/deck" element={<Brief />} />
-          <Route path="create/deck/:id/outline" element={<Outline />} />
-          <Route path="create/deck/:id/progress" element={<Progress />} />
-          <Route path="create/deck/:id/review" element={<Review />} />
-          <Route path="create/doc" element={<Brief />} />
-          <Route path="create/doc/:id/outline" element={<DocOutline />} />
-          <Route path="create/doc/:id/progress" element={<DocProgress />} />
-          <Route path="create/doc/:id/review" element={<DocReview />} />
-          <Route path="create/image" element={<ImageBrief />} />
-          <Route path="create/image/:id/prompt" element={<ImagePrompt />} />
-          <Route path="create/image/:id/progress" element={<ImageProgress />} />
-          <Route path="create/image/:id/review" element={<ImageReview />} />
-          <Route path="create/infographic" element={<InfographicBrief />} />
-          <Route path="create/infographic/:id/progress" element={<InfographicProgress />} />
-          <Route path="create/infographic/:id/review" element={<InfographicReview />} />
-        </Route>
-      </Routes>
+      <UploadProvider>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="library" element={<Library />} />
+            <Route path="create/deck" element={<Brief />} />
+            <Route path="create/deck/:id/outline" element={<Outline />} />
+            <Route path="create/deck/:id/progress" element={<Progress />} />
+            <Route path="create/deck/:id/review" element={<Review />} />
+            <Route path="create/doc" element={<Brief />} />
+            <Route path="create/doc/:id/outline" element={<DocOutline />} />
+            <Route path="create/doc/:id/progress" element={<DocProgress />} />
+            <Route path="create/doc/:id/review" element={<DocReview />} />
+            <Route path="create/image" element={<ImageBrief />} />
+            <Route path="create/image/:id/prompt" element={<ImagePrompt />} />
+            <Route path="create/image/:id/progress" element={<ImageProgress />} />
+            <Route path="create/image/:id/review" element={<ImageReview />} />
+            <Route path="create/infographic" element={<InfographicBrief />} />
+            <Route path="create/infographic/:id/progress" element={<InfographicProgress />} />
+            <Route path="create/infographic/:id/review" element={<InfographicReview />} />
+          </Route>
+        </Routes>
+      </UploadProvider>
     </BrowserRouter>
   );
 }

@@ -4,12 +4,19 @@ import { ArrowLeft, Pencil, Trash2, Plus, Layout, Loader2 } from 'lucide-react';
 import { generations } from '../services/api';
 
 const LAYOUT_OPTIONS = [
-  { key: 'title',           label: 'Title',      description: 'Opening or divider slide' },
-  { key: 'bullets',         label: 'Bullets',     description: 'Standard content slide' },
-  { key: 'two_column',      label: 'Two Column',  description: 'Side-by-side comparison' },
-  { key: 'stat_focus',      label: 'Key Stat',    description: 'Highlight a single metric' },
-  { key: 'quote_highlight', label: 'Quote',       description: 'Featured quote or principle' },
-  { key: 'checklist',       label: 'Checklist',   description: 'Steps or procedure list' },
+  { key: 'title',            label: 'Title',            description: 'Opening slide' },
+  { key: 'bullets',          label: 'Bullets',           description: 'Standard content slide' },
+  { key: 'two_column',       label: 'Two Column',        description: 'Side-by-side comparison' },
+  { key: 'stat_focus',       label: 'Key Stat',          description: 'Highlight a single metric' },
+  { key: 'quote_highlight',  label: 'Quote',             description: 'Featured quote or principle' },
+  { key: 'checklist',        label: 'Checklist',         description: 'Steps or procedure list' },
+  { key: 'section_divider',  label: 'Section Divider',   description: 'Visual break between topics' },
+  { key: 'big_idea',         label: 'Big Idea',          description: 'One bold statement' },
+  { key: 'timeline',         label: 'Timeline',          description: 'Chronological events' },
+  { key: 'process_flow',     label: 'Process Flow',      description: 'Sequential workflow steps' },
+  { key: 'icon_grid',        label: 'Icon Grid',         description: 'Concept cards in a grid' },
+  { key: 'comparison_table', label: 'Comparison Table',  description: 'Structured data table' },
+  { key: 'closing',          label: 'Closing',           description: 'Takeaways and call to action' },
 ];
 
 const LAYOUT_LABELS = Object.fromEntries(LAYOUT_OPTIONS.map((o) => [o.key, o.label]));
@@ -172,7 +179,7 @@ export default function Outline() {
               {layoutPicker === i && (
                 <div className="px-5 py-3 bg-canvas border-t border-border">
                   <p className="text-[13px] text-slate mb-2 font-semibold">Choose layout</p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     {LAYOUT_OPTIONS.map((opt) => (
                       <button key={opt.key} type="button"
                         onClick={() => updateSlideLayout(i, opt.key)}

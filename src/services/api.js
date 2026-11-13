@@ -17,6 +17,70 @@ export const documents = {
     form.append('uploaded_file', file);
     return request('/documents/upload', { method: 'POST', body: form, headers: {} });
   },
+  uploadStream: (file, onMessage) => {
+    const form = new FormData();
+    form.append('uploaded_file', file);
+    return new Promise((resolve, reject) => {
+      fetch(`${BASE}/documents/upload-stream`, { method: 'POST', body: form })
+        .then((res) => {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          function read() {
+            reader.read().then(({ done, value }) => {
+              if (done) return resolve();
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n\n');
+              buffer = lines.pop();
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try { onMessage(JSON.parse(line.slice(6))); } catch {}
+                }
+              }
+              read();
+            }).catch(reject);
+          }
+          read();
+        })
+        .catch(reject);
+    });
+  },
+  query: (query, history, docIdsToReference, onMessage) => {
+    return new Promise((resolve, reject) => {
+      fetch(`${BASE}/documents/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, history, docIdsToReference }),
+      })
+        .then((res) => {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let result = null;
+          function read() {
+            reader.read().then(({ done, value }) => {
+              if (done) return resolve(result);
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n\n');
+              buffer = lines.pop();
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const evt = JSON.parse(line.slice(6));
+                    if (evt.phase === 'done') result = evt;
+                    if (evt.phase === 'error') reject(new Error(evt.message));
+                    if (onMessage) onMessage(evt);
+                  } catch {}
+                }
+              }
+              read();
+            }).catch(reject);
+          }
+          read();
+        })
+        .catch(reject);
+    });
+  },
   downloadUrl: (id) => `${BASE}/documents/${id}/file`,
   delete: (id) => request(`/documents/${id}`, { method: 'DELETE' }),
 };
@@ -196,6 +260,14 @@ export const generations = {
   releaseGpu: () => request('/generations/release-gpu', { method: 'POST' }),
 
   delete: (id) => request(`/generations/${id}`, { method: 'DELETE' }),
+};
+
+export const conversations = {
+  list: () => request('/conversations'),
+  get: (id) => request(`/conversations/${id}`),
+  create: (title, docIds) => request('/conversations', { method: 'POST', body: JSON.stringify({ title, docIds }) }),
+  update: (id, data) => request(`/conversations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id) => request(`/conversations/${id}`, { method: 'DELETE' }),
 };
 
 export const assets = {

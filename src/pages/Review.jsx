@@ -320,9 +320,273 @@ function ChecklistSlide({ content, onField, onItem, onAddItem, onRemoveItem }) {
   );
 }
 
+function ClosingSlide({ content, onField, onTakeaway, onAddTakeaway, onRemoveTakeaway }) {
+  return (
+    <div className="flex flex-col h-full relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0F2B48] via-[#163A60] to-[#1E4A7A]" />
+      <div className="absolute top-0 right-0 w-[60%] h-full bg-gradient-to-l from-[#2563EB]/15 to-transparent" />
+      <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-[#2563EB] via-[#60A5FA] to-transparent" />
+      <div className="absolute bottom-0 left-0 w-full h-[3px] bg-gradient-to-r from-[#2563EB] via-[#60A5FA] to-transparent" />
+      <div className="relative z-10 flex flex-col h-full px-8 py-5 gap-2">
+        <input type="text" value={content.title}
+          onChange={(e) => onField('title', e.target.value)}
+          className={`${inputBase} font-heading text-[22px] font-bold text-white`}
+          placeholder="Closing title" />
+        <div className="w-10 h-[3px] bg-[#60A5FA] rounded-full mb-1" />
+        <ol className="list-none m-0 p-0 flex flex-col gap-0.5 flex-1">
+          {(content.takeaways || []).map((t, i) => (
+            <li key={i} className="group flex gap-2 items-start py-0.5">
+              <div className="w-[20px] h-[20px] rounded-full bg-[#2563EB] text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">✓</div>
+              <AutoTextarea value={t}
+                onChange={(val) => onTakeaway(i, val)}
+                className={`${inputBase} text-[12px] text-white leading-snug flex-1`}
+                placeholder="Takeaway" />
+              <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <button type="button" onClick={() => onAddTakeaway(i)}
+                  className="p-0 w-3.5 h-3.5 flex items-center justify-center text-[#94A3B8] hover:text-white cursor-pointer bg-transparent border-0"><Plus size={10} /></button>
+                <button type="button" onClick={() => onRemoveTakeaway(i)} disabled={(content.takeaways || []).length <= 1}
+                  className="p-0 w-3.5 h-3.5 flex items-center justify-center text-[#94A3B8] hover:text-red-400 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><X size={10} /></button>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <AutoTextarea value={content.call_to_action || ''}
+          onChange={(val) => onField('call_to_action', val)}
+          className={`${inputBase} text-[12px] text-[#60A5FA] font-semibold leading-snug`}
+          placeholder="Call to action (optional)" />
+      </div>
+    </div>
+  );
+}
+
+function SectionDividerSlide({ content, onField }) {
+  return (
+    <div className="flex flex-col h-full relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-[#163A60] to-[#1E4A7A]" />
+      <div className="absolute top-0 right-0 w-[50%] h-full bg-gradient-to-l from-[#1E4A7A]/50 to-transparent" />
+      <div className="absolute top-[52%] left-0 w-full h-[3px] bg-[#2563EB]" />
+      <div className="relative z-10 flex flex-col justify-center h-full px-10 py-8 gap-2">
+        <AutoTextarea value={content.title}
+          onChange={(val) => onField('title', val)}
+          className={`${inputBase} font-heading text-[32px] leading-[1.15] font-bold tracking-tight text-white`}
+          placeholder="Section title" />
+        <AutoTextarea value={content.subtitle}
+          onChange={(val) => onField('subtitle', val)}
+          className={`${inputBase} text-[15px] leading-relaxed text-[#94A3B8] max-w-[70%] mt-2`}
+          placeholder="Subtitle" />
+      </div>
+    </div>
+  );
+}
+
+function BigIdeaSlide({ content, onField }) {
+  return (
+    <div className="flex flex-col h-full relative">
+      <div className="absolute inset-y-0 left-0 w-[6px] bg-cobalt" />
+      <div className="absolute top-3 left-6 text-[60px] font-heading text-[#E2E8F0] leading-none select-none pointer-events-none">&ldquo;</div>
+      <div className="relative z-10 flex flex-col justify-center h-full pl-10 pr-6 gap-3">
+        <AutoTextarea value={content.statement}
+          onChange={(val) => onField('statement', val)}
+          className={`${inputBase} font-heading text-[24px] leading-[1.25] font-bold tracking-tight text-navy`}
+          placeholder="One bold statement" />
+        <div className="w-12 h-[3px] bg-cobalt rounded-full" />
+        <AutoTextarea value={content.supporting}
+          onChange={(val) => onField('supporting', val)}
+          className={`${inputBase} text-[13px] leading-relaxed text-slate max-w-[80%]`}
+          placeholder="Supporting context" />
+      </div>
+    </div>
+  );
+}
+
+function TimelineSlide({ content, onField, onEvent, onAddEvent, onRemoveEvent }) {
+  return (
+    <div className="flex flex-col h-full gap-2">
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-5 bg-cobalt rounded-full shrink-0" />
+        <input type="text" value={content.title}
+          onChange={(e) => onField('title', e.target.value)}
+          className={`${inputBase} font-heading text-[18px] font-bold text-navy`}
+          placeholder="Timeline title" />
+      </div>
+      <div className="w-full h-px bg-cobalt/30" />
+      <div className="flex-1 flex items-stretch gap-0 overflow-x-auto px-2">
+        {(content.events || []).map((ev, i) => (
+          <div key={i} className="group flex flex-col items-center flex-1 min-w-[100px] relative px-1">
+            <div className="w-[10px] h-[10px] rounded-full bg-cobalt shrink-0 mt-1 z-10" />
+            {i < (content.events || []).length - 1 && (
+              <div className="absolute top-[6px] left-1/2 w-full h-[2px] bg-[#E2E8F0] z-0" />
+            )}
+            <input type="text" value={ev.date}
+              onChange={(e) => onEvent(i, 'date', e.target.value)}
+              className={`${inputBase} text-[10px] font-bold text-cobalt text-center mt-1`}
+              placeholder="Date" />
+            <input type="text" value={ev.label}
+              onChange={(e) => onEvent(i, 'label', e.target.value)}
+              className={`${inputBase} text-[11px] font-semibold text-navy text-center`}
+              placeholder="Label" />
+            <AutoTextarea value={ev.detail || ''}
+              onChange={(val) => onEvent(i, 'detail', val)}
+              className={`${inputBase} text-[9px] text-slate text-center leading-snug`}
+              placeholder="Detail" />
+            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
+              <button type="button" onClick={() => onAddEvent(i)}
+                className="p-0 w-3.5 h-3.5 flex items-center justify-center text-slate hover:text-cobalt cursor-pointer bg-transparent border-0"><Plus size={9} /></button>
+              <button type="button" onClick={() => onRemoveEvent(i)} disabled={(content.events || []).length <= 1}
+                className="p-0 w-3.5 h-3.5 flex items-center justify-center text-slate hover:text-red-600 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><X size={9} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProcessFlowSlide({ content, onField, onStep, onAddStep, onRemoveStep }) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-1 h-5 bg-navy rounded-full shrink-0" />
+        <input type="text" value={content.title}
+          onChange={(e) => onField('title', e.target.value)}
+          className={`${inputBase} font-heading text-[18px] font-bold text-navy`}
+          placeholder="Process title" />
+      </div>
+      <div className="flex-1 flex items-center gap-1 overflow-x-auto px-1">
+        {(content.steps || []).map((step, i) => (
+          <div key={i} className="group flex items-center gap-1 flex-1 min-w-[80px]">
+            <div className="flex flex-col items-center gap-1 flex-1 bg-[#F0F4F8] rounded-lg p-2 min-h-[120px]">
+              <div className="w-[28px] h-[28px] rounded-full bg-cobalt text-white text-[12px] font-bold flex items-center justify-center shrink-0">
+                {i + 1}
+              </div>
+              <input type="text" value={step.label}
+                onChange={(e) => onStep(i, 'label', e.target.value)}
+                className={`${inputBase} text-[11px] font-semibold text-navy text-center`}
+                placeholder="Step label" />
+              <AutoTextarea value={step.detail}
+                onChange={(val) => onStep(i, 'detail', val)}
+                className={`${inputBase} text-[9px] text-slate text-center leading-snug`}
+                placeholder="Detail" />
+              <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
+                <button type="button" onClick={() => onAddStep(i)}
+                  className="p-0 w-3.5 h-3.5 flex items-center justify-center text-slate hover:text-cobalt cursor-pointer bg-transparent border-0"><Plus size={9} /></button>
+                <button type="button" onClick={() => onRemoveStep(i)} disabled={(content.steps || []).length <= 1}
+                  className="p-0 w-3.5 h-3.5 flex items-center justify-center text-slate hover:text-red-600 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><X size={9} /></button>
+              </div>
+            </div>
+            {i < (content.steps || []).length - 1 && (
+              <span className="text-cobalt font-bold text-[16px] shrink-0">→</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function IconGridSlide({ content, onField, onItem, onAddItem, onRemoveItem }) {
+  const items = content.items || [];
+  const cols = items.length > 4 ? 3 : 2;
+  return (
+    <div className="flex flex-col h-full gap-2">
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-5 bg-cobalt rounded-full shrink-0" />
+        <input type="text" value={content.title}
+          onChange={(e) => onField('title', e.target.value)}
+          className={`${inputBase} font-heading text-[18px] font-bold text-navy`}
+          placeholder="Grid title" />
+      </div>
+      <div className="w-full h-px bg-cobalt/30" />
+      <div className={`flex-1 grid gap-2 p-1`} style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+        {items.map((item, i) => (
+          <div key={i} className="group bg-white border border-[#E2E8F0] rounded-lg p-2 flex flex-col gap-1 min-h-0">
+            <div className="flex items-center gap-1.5">
+              <div className="w-[24px] h-[24px] rounded-full bg-cobalt/10 text-cobalt text-[10px] font-bold flex items-center justify-center shrink-0 uppercase">
+                {(item.icon || '●').slice(0, 1)}
+              </div>
+              <input type="text" value={item.label}
+                onChange={(e) => onItem(i, 'label', e.target.value)}
+                className={`${inputBase} text-[11px] font-semibold text-navy flex-1`}
+                placeholder="Label" />
+            </div>
+            <AutoTextarea value={item.description}
+              onChange={(val) => onItem(i, 'description', val)}
+              className={`${inputBase} text-[9px] text-slate leading-snug`}
+              placeholder="Description" />
+            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
+              <button type="button" onClick={() => onAddItem(i)}
+                className="p-0 w-3.5 h-3.5 flex items-center justify-center text-slate hover:text-cobalt cursor-pointer bg-transparent border-0"><Plus size={9} /></button>
+              <button type="button" onClick={() => onRemoveItem(i)} disabled={items.length <= 1}
+                className="p-0 w-3.5 h-3.5 flex items-center justify-center text-slate hover:text-red-600 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><X size={9} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ComparisonTableSlide({ content, onField, onCell, onColumnHeader, onAddRow, onRemoveRow }) {
+  const columns = content.columns || [];
+  const rows = content.rows || [];
+  return (
+    <div className="flex flex-col h-full gap-2">
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-5 bg-navy rounded-full shrink-0" />
+        <input type="text" value={content.title}
+          onChange={(e) => onField('title', e.target.value)}
+          className={`${inputBase} font-heading text-[18px] font-bold text-navy`}
+          placeholder="Table title" />
+      </div>
+      <div className="flex-1 overflow-auto">
+        <table className="w-full border-collapse text-[11px]">
+          <thead>
+            <tr>
+              {columns.map((col, ci) => (
+                <th key={ci} className="bg-cobalt text-white text-left px-2 py-1.5 font-semibold">
+                  <input type="text" value={col}
+                    onChange={(e) => onColumnHeader(ci, e.target.value)}
+                    className="w-full bg-transparent border-0 outline-none text-white text-[11px] font-semibold p-0"
+                    placeholder="Header" />
+                </th>
+              ))}
+              <th className="w-6" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, ri) => (
+              <tr key={ri} className={`group ${ri % 2 === 0 ? 'bg-[#F0F4F8]' : 'bg-white'}`}>
+                {columns.map((_, ci) => (
+                  <td key={ci} className="px-2 py-1 border-b border-[#E2E8F0]">
+                    <input type="text" value={(row[ci] || '')}
+                      onChange={(e) => onCell(ri, ci, e.target.value)}
+                      className={`${inputBase} text-[11px] text-navy`}
+                      placeholder="-" />
+                  </td>
+                ))}
+                <td className="px-0.5 border-b border-[#E2E8F0]">
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onClick={() => onAddRow(ri)}
+                      className="p-0 w-3 h-3 flex items-center justify-center text-slate hover:text-cobalt cursor-pointer bg-transparent border-0"><Plus size={8} /></button>
+                    <button type="button" onClick={() => onRemoveRow(ri)} disabled={rows.length <= 1}
+                      className="p-0 w-3 h-3 flex items-center justify-center text-slate hover:text-red-600 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><X size={8} /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 const LAYOUT_LABELS = {
   title: 'Title', bullets: 'Bullets', two_column: 'Two Column',
   stat_focus: 'Key Stat', quote_highlight: 'Quote', checklist: 'Checklist',
+  closing: 'Closing', section_divider: 'Divider', big_idea: 'Big Idea',
+  timeline: 'Timeline', process_flow: 'Process', icon_grid: 'Icon Grid',
+  comparison_table: 'Table',
 };
 
 function SlideThumbnail({ layout }) {
@@ -378,6 +642,92 @@ function SlideThumbnail({ layout }) {
             <div key={n} className="flex items-center gap-1">
               <div className="w-[8px] h-[8px] rounded-sm bg-navy/80 text-white text-[5px] font-bold flex items-center justify-center shrink-0">{n}</div>
               <div className="flex-1 h-[1.5px] bg-[#CBD5E1] rounded-full" />
+            </div>
+          ))}
+        </div>
+      );
+    case 'closing':
+      return (
+        <div className={`${base} bg-gradient-to-br from-[#0F2B48] to-[#1E4A7A] flex flex-col justify-center px-2 gap-[2px]`}>
+          <div className="w-[50%] h-[2px] bg-white/60 rounded-full mb-0.5" />
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex items-center gap-1">
+              <div className="w-[5px] h-[5px] rounded-full bg-cobalt shrink-0" />
+              <div className="flex-1 h-[1.5px] bg-white/30 rounded-full" />
+            </div>
+          ))}
+        </div>
+      );
+    case 'section_divider':
+      return (
+        <div className={`${base} bg-gradient-to-br from-[#163A60] to-[#1E4A7A] flex flex-col justify-center px-2`}>
+          <div className="w-[60%] h-[2.5px] bg-white/70 rounded-full mb-0.5" />
+          <div className="w-full h-[2px] bg-cobalt rounded-full my-0.5" />
+          <div className="w-[40%] h-[1.5px] bg-white/30 rounded-full" />
+        </div>
+      );
+    case 'big_idea':
+      return (
+        <div className={`${base} bg-white border border-[#E2E8F0] flex items-center`}>
+          <div className="w-[3px] h-full bg-cobalt shrink-0" />
+          <div className="flex flex-col justify-center px-1.5 gap-0.5">
+            <div className="text-[7px] text-[#E2E8F0] font-heading leading-none">&ldquo;</div>
+            <div className="w-[70%] h-[2px] bg-navy/40 rounded-full" />
+            <div className="w-3 h-px bg-cobalt/30 rounded-full" />
+            <div className="w-[50%] h-[1.5px] bg-[#CBD5E1] rounded-full" />
+          </div>
+        </div>
+      );
+    case 'timeline':
+      return (
+        <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col items-center justify-center gap-0.5 px-1`}>
+          <div className="w-[60%] h-[2px] bg-navy/30 rounded-full" />
+          <div className="flex items-center gap-1 w-full justify-center mt-0.5">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="flex flex-col items-center">
+                <div className="w-[5px] h-[5px] rounded-full bg-cobalt" />
+                <div className="w-[1px] h-[4px] bg-[#E2E8F0]" />
+              </div>
+            ))}
+          </div>
+          <div className="w-[70%] h-[1.5px] bg-[#E2E8F0] rounded-full -mt-[5px]" />
+        </div>
+      );
+    case 'process_flow':
+      return (
+        <div className={`${base} bg-white border border-[#E2E8F0] flex items-center justify-center gap-[2px] px-1`}>
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex items-center gap-[2px]">
+              <div className="w-[10px] h-[14px] rounded-sm bg-[#F0F4F8] flex items-center justify-center">
+                <div className="w-[5px] h-[5px] rounded-full bg-cobalt/60" />
+              </div>
+              {n < 3 && <span className="text-[5px] text-cobalt/50">→</span>}
+            </div>
+          ))}
+        </div>
+      );
+    case 'icon_grid':
+      return (
+        <div className={`${base} bg-white border border-[#E2E8F0] grid grid-cols-2 gap-[2px] p-1`}>
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className="bg-[#F0F4F8] rounded-sm flex flex-col items-center justify-center gap-[1px] py-0.5">
+              <div className="w-[5px] h-[5px] rounded-full bg-cobalt/40" />
+              <div className="w-[60%] h-[1px] bg-[#CBD5E1] rounded-full" />
+            </div>
+          ))}
+        </div>
+      );
+    case 'comparison_table':
+      return (
+        <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col p-0.5`}>
+          <div className="flex gap-px mb-px">
+            <div className="flex-1 h-[4px] bg-cobalt rounded-sm" />
+            <div className="flex-1 h-[4px] bg-cobalt rounded-sm" />
+          </div>
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex gap-px mb-px">
+              <div className={`flex-1 h-[3px] rounded-sm ${n % 2 ? 'bg-[#F0F4F8]' : 'bg-white'}`} />
+              <div className={`flex-1 h-[3px] rounded-sm ${n % 2 ? 'bg-[#F0F4F8]' : 'bg-white'}`} />
             </div>
           ))}
         </div>
@@ -567,6 +917,85 @@ export default function Review() {
     updateSlideField('items', content.items.filter((_, i) => i !== idx));
   }
 
+  // Closing layout helpers
+  function updateTakeaway(idx, value) {
+    const a = [...(content.takeaways || [])]; a[idx] = value;
+    updateSlideField('takeaways', a);
+  }
+  function addTakeaway(after) {
+    const a = [...(content.takeaways || [])]; a.splice(after + 1, 0, '');
+    updateSlideField('takeaways', a);
+  }
+  function removeTakeaway(idx) {
+    const a = content.takeaways || [];
+    if (a.length <= 1) return;
+    updateSlideField('takeaways', a.filter((_, i) => i !== idx));
+  }
+
+  // Timeline helpers
+  function updateEvent(idx, field, value) {
+    const a = (content.events || []).map((e, i) => i === idx ? { ...e, [field]: value } : e);
+    updateSlideField('events', a);
+  }
+  function addEvent(after) {
+    const a = [...(content.events || [])]; a.splice(after + 1, 0, { date: '', label: '', detail: '' });
+    updateSlideField('events', a);
+  }
+  function removeEvent(idx) {
+    if ((content.events || []).length <= 1) return;
+    updateSlideField('events', (content.events || []).filter((_, i) => i !== idx));
+  }
+
+  // Process flow helpers
+  function updateStep(idx, field, value) {
+    const a = (content.steps || []).map((s, i) => i === idx ? { ...s, [field]: value } : s);
+    updateSlideField('steps', a);
+  }
+  function addStep(after) {
+    const a = [...(content.steps || [])]; a.splice(after + 1, 0, { label: '', detail: '' });
+    updateSlideField('steps', a);
+  }
+  function removeStep(idx) {
+    if ((content.steps || []).length <= 1) return;
+    updateSlideField('steps', (content.steps || []).filter((_, i) => i !== idx));
+  }
+
+  // Icon grid helpers
+  function updateGridItem(idx, field, value) {
+    const a = (content.items || []).map((it, i) => i === idx ? { ...it, [field]: value } : it);
+    updateSlideField('items', a);
+  }
+  function addGridItem(after) {
+    const a = [...(content.items || [])]; a.splice(after + 1, 0, { icon: '', label: '', description: '' });
+    updateSlideField('items', a);
+  }
+  function removeGridItem(idx) {
+    if ((content.items || []).length <= 1) return;
+    updateSlideField('items', (content.items || []).filter((_, i) => i !== idx));
+  }
+
+  // Comparison table helpers
+  function updateColumnHeader(ci, value) {
+    const a = [...(content.columns || [])]; a[ci] = value;
+    updateSlideField('columns', a);
+  }
+  function updateCell(ri, ci, value) {
+    const r = (content.rows || []).map((row, i) => {
+      if (i !== ri) return row;
+      const nr = [...row]; nr[ci] = value; return nr;
+    });
+    updateSlideField('rows', r);
+  }
+  function addTableRow(after) {
+    const cols = (content.columns || []).length;
+    const a = [...(content.rows || [])]; a.splice(after + 1, 0, Array(cols).fill(''));
+    updateSlideField('rows', a);
+  }
+  function removeTableRow(idx) {
+    if ((content.rows || []).length <= 1) return;
+    updateSlideField('rows', (content.rows || []).filter((_, i) => i !== idx));
+  }
+
   // Drag handlers for bullets
   const dragHandlers = {
     dragIdx, overIdx: dragOverIdx,
@@ -618,6 +1047,25 @@ export default function Review() {
       case 'checklist':
         return <ChecklistSlide content={content} onField={onField}
           onItem={updateItem} onAddItem={addItem} onRemoveItem={removeItem} />;
+      case 'closing':
+        return <ClosingSlide content={content} onField={onField}
+          onTakeaway={updateTakeaway} onAddTakeaway={addTakeaway} onRemoveTakeaway={removeTakeaway} />;
+      case 'section_divider':
+        return <SectionDividerSlide content={content} onField={onField} />;
+      case 'big_idea':
+        return <BigIdeaSlide content={content} onField={onField} />;
+      case 'timeline':
+        return <TimelineSlide content={content} onField={onField}
+          onEvent={updateEvent} onAddEvent={addEvent} onRemoveEvent={removeEvent} />;
+      case 'process_flow':
+        return <ProcessFlowSlide content={content} onField={onField}
+          onStep={updateStep} onAddStep={addStep} onRemoveStep={removeStep} />;
+      case 'icon_grid':
+        return <IconGridSlide content={content} onField={onField}
+          onItem={updateGridItem} onAddItem={addGridItem} onRemoveItem={removeGridItem} />;
+      case 'comparison_table':
+        return <ComparisonTableSlide content={content} onField={onField}
+          onCell={updateCell} onColumnHeader={updateColumnHeader} onAddRow={addTableRow} onRemoveRow={removeTableRow} />;
       case 'bullets':
       default:
         return <BulletsSlide content={content} onField={onField}
@@ -647,7 +1095,7 @@ export default function Review() {
     setSavingToLibrary(false);
   }
 
-  const hasSpeakerNotes = layout !== 'title';
+  const hasSpeakerNotes = layout !== 'title' && layout !== 'closing' && layout !== 'section_divider';
 
   return (
     <main className="h-[calc(100vh-48px)] flex flex-col overflow-hidden">
@@ -725,7 +1173,7 @@ export default function Review() {
         <div className="flex-1 min-w-0 flex flex-col bg-[#E8ECF0] overflow-hidden">
           <SlideFitContainer>
             <article className="rounded-lg shadow-lg overflow-hidden relative bg-white w-full h-full">
-              <SlideFrame noPad={layout === 'title'}>{renderSlide()}</SlideFrame>
+              <SlideFrame noPad={layout === 'title' || layout === 'closing' || layout === 'section_divider'}>{renderSlide()}</SlideFrame>
             </article>
           </SlideFitContainer>
 

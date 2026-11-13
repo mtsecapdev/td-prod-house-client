@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { FileSliders, FileText, Image, LayoutGrid, ArrowRight, Trash2 } from 'lucide-react';
-import { generations } from '../services/api';
+import { FileSliders, FileText, Image, LayoutGrid, ArrowRight, Trash2, Upload, Download, ChevronDown, ChevronUp, FolderOpen, Check, X } from 'lucide-react';
+import { generations, documents } from '../services/api';
+import { useUpload } from '../contexts/UploadContext';
 
 const types = [
   { type: 'deck', label: 'Slide deck', desc: 'Training presentations from your source material', icon: FileSliders, to: '/create/deck' },
@@ -42,12 +43,54 @@ function getResumeUrl(g) {
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
+function IngestionProgress({ progress, phase }) {
+  const size = 36;
+  const stroke = 3;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (progress / 100) * circumference;
+  const isDone = phase === 'done';
+  const isError = phase === 'error';
+
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke="#E2E8F0" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={radius}
+          fill="none"
+          stroke={isDone ? '#10B981' : isError ? '#EF4444' : '#2563EB'}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 0.4s ease' }} />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-slate">
+        {isDone ? <Check size={14} className="text-emerald-600" /> :
+         isError ? <X size={14} className="text-red-500" /> :
+         `${progress}%`}
+      </span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [recentWork, setRecentWork] = useState([]);
   const [confirmId, setConfirmId] = useState(null);
   const [deleting, setDeleting] = useState(null);
 
+  const [docs, setDocs] = useState([]);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const { uploading, uploadPhase, uploadMsg, uploadProgress, uploadFileName, startUpload } = useUpload();
+  const fileRef = useRef(null);
+
+  function loadDocs() {
+    documents.list().then((d) => setDocs(d.docs || d || [])).catch(() => {});
+  }
+
   useEffect(() => {
+    loadDocs();
     generations.list().then((data) => {
       const list = data.generations || data || [];
       const cutoff = Date.now() - SEVEN_DAYS;
@@ -58,6 +101,22 @@ export default function Home() {
       setRecentWork(resumable);
     }).catch(() => {});
   }, []);
+
+  function handleUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    startUpload(file, loadDocs);
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  async function handleDeleteDoc(id) {
+    try {
+      await documents.delete(id);
+      loadDocs();
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
+  }
 
   function handleTrashClick(e, id) {
     e.preventDefault();
@@ -177,6 +236,88 @@ export default function Home() {
             </Link>
           );
         })}
+      </div>
+
+      <div className="max-w-[720px] mx-auto w-full">
+        <button type="button" onClick={() => setDocsOpen(!docsOpen)}
+          className="w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-lg border border-border bg-white hover:bg-canvas transition-colors cursor-pointer">
+          <div className="flex items-center gap-3">
+            <FolderOpen size={18} className="text-navy" />
+            <span className="font-semibold text-[15px]">Source documents</span>
+            {docs.length > 0 && (
+              <span className="text-[13px] text-slate">{docs.filter((d) => d.status === 'ready').length} ready</span>
+            )}
+          </div>
+          {docsOpen ? <ChevronUp size={18} className="text-slate" /> : <ChevronDown size={18} className="text-slate" />}
+        </button>
+
+        {docsOpen && (
+          <div className="card mt-2 overflow-hidden">
+            <div className="px-5 py-4 flex items-center gap-3 border-b border-border">
+              <input ref={fileRef} type="file" id="home-doc-upload" className="hidden"
+                accept=".pdf,.docx,.pptx,.md,.txt" onChange={handleUpload} />
+              {uploading ? (
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <IngestionProgress progress={uploadProgress} phase={uploadPhase} />
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-medium truncate">{uploadFileName}</p>
+                    <p className="text-[13px] text-slate truncate">{uploadMsg}</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="btn-outline text-[14px] gap-1.5">
+                    <Upload size={16} />
+                    Upload document
+                  </button>
+                  {uploadMsg && (
+                    <span className={`text-[13px] flex items-center gap-1.5 ${uploadPhase === 'error' ? 'text-red-600' : 'text-emerald-600'}`}>
+                      {uploadPhase === 'done' && <Check size={14} />}
+                      {uploadPhase === 'error' && <X size={14} />}
+                      {uploadMsg}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+
+            {docs.length === 0 ? (
+              <p className="hint px-5 py-4">No documents ingested yet. Upload PDFs, DOCX, or text files to use as source material.</p>
+            ) : (
+              <ul className="list-none m-0 p-0">
+                {docs.map((d) => (
+                  <li key={d.id} className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0 hover:bg-canvas">
+                    <span className="text-[15px] flex-1 truncate">{d.name}</span>
+                    {d.status === 'processing' && uploading && d.name === uploadFileName ? (
+                      <div className="flex items-center gap-2">
+                        <IngestionProgress progress={uploadProgress} phase={uploadPhase} />
+                        <span className="text-[12px] text-amber-700">{uploadMsg || 'processing'}</span>
+                      </div>
+                    ) : (
+                      <span className={`text-[12px] font-medium px-2 py-0.5 rounded-md ${
+                        d.status === 'ready' ? 'bg-emerald-50 text-emerald-700' :
+                        d.status === 'failed' ? 'bg-red-50 text-red-600' :
+                        'bg-amber-50 text-amber-700'
+                      }`}>{d.status || 'processing'}</span>
+                    )}
+                    {d.file_path && d.status === 'ready' && (
+                      <a href={documents.downloadUrl(d.id)} download
+                        className="text-cobalt hover:text-navy p-1" title="Download original">
+                        <Download size={16} />
+                      </a>
+                    )}
+                    <button type="button" onClick={() => handleDeleteDoc(d.id)}
+                      className="text-slate hover:text-red-600 p-1" title="Delete document">
+                      <Trash2 size={16} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );

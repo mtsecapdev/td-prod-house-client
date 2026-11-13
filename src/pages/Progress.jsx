@@ -6,6 +6,9 @@ import { generations } from '../services/api';
 const LAYOUT_LABELS = {
   title: 'Title', bullets: 'Bullets', two_column: 'Two Column',
   stat_focus: 'Key Stat', quote_highlight: 'Quote', checklist: 'Checklist',
+  section_divider: 'Section', big_idea: 'Big Idea', timeline: 'Timeline',
+  process_flow: 'Process', icon_grid: 'Icon Grid', comparison_table: 'Table',
+  closing: 'Closing',
 };
 
 export default function Progress() {
