@@ -143,6 +143,7 @@ export default function Chat() {
         role: 'assistant',
         content: reply.content,
         confidence: data.avgConfidenceScore,
+        grounded: data.grounded,
         chunks: data.chunks,
       };
       const allMessages = [...nextMessages, assistantMsg];
@@ -310,10 +311,10 @@ export default function Chat() {
                     </div>
                   )}
                   <div className="whitespace-pre-wrap">{msg.content}</div>
-                  {msg.confidence != null && msg.confidence < 0.4 && (
+                  {msg.grounded === false && (
                     <p className="mt-2 text-[12px] text-amber-600 flex items-center gap-1">
                       <AlertTriangle size={12} />
-                      Low confidence — documents may not cover this topic
+                      Not found in the selected documents — answer may rely on general knowledge
                     </p>
                   )}
                 </div>
