@@ -4,8 +4,15 @@ import { ArrowLeft, Upload, Download, Loader2, Trash2, Copy, Sparkles } from 'lu
 import { documents, generations } from '../services/api';
 import { KIND } from '../components/plan/kindConfig';
 
-// Gamma-style start: what to make, from which documents, how many slides/sections, and the format.
-// Audience, tone and text amount come pre-filled on the outline screen.
+// Gamma-style start: describe what to make (from documents), or paste your own text. Then how many
+// slides/sections and the format. Audience, tone and text amount come pre-filled on the outline screen.
+
+const TEXT_MODES = [
+  { value: 'generate', label: 'Generate', desc: 'Use it as a starting point and expand' },
+  { value: 'condense', label: 'Condense', desc: 'Shorten it into the layouts' },
+  { value: 'preserve', label: 'Preserve', desc: 'Keep your exact wording' },
+];
+const SPLIT_RE = /\n\s*-{3,}\s*\n/;
 export default function Brief() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -13,7 +20,10 @@ export default function Brief() {
   const kind = KIND[type];
   const isDeck = type === 'deck';
   const fileRef = useRef(null);
+  const [mode, setMode] = useState('describe'); // 'describe' | 'paste'
   const [topic, setTopic] = useState('');
+  const [sourceText, setSourceText] = useState('');
+  const [textMode, setTextMode] = useState('generate');
   const [count, setCount] = useState(kind.defaultCount);
   const [format, setFormat] = useState(kind.formats[0].value);
   const [docs, setDocs] = useState([]);
@@ -97,15 +107,26 @@ export default function Brief() {
     }
   }
 
+  const pasting = mode === 'paste';
+  // Parts marked with "---" fix the number of slides/sections.
+  const parts = pasting ? sourceText.trim().split(SPLIT_RE).filter((p) => p.trim()).length : 0;
+  const canSubmit = pasting ? sourceText.trim().length > 0 : topic.trim() && selectedIds.length > 0;
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!topic.trim() || selectedIds.length === 0) return;
+    if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
     try {
       const { generation } = await generations.create({
         type,
-        brief: { topic, count, format, text_amount: 'concise' },
+        brief: pasting
+          ? {
+            topic: topic.trim() || sourceText.trim().split('\n')[0].slice(0, 120),
+            source_text: sourceText, text_mode: textMode,
+            count: parts > 1 ? parts : count, format, text_amount: 'concise',
+          }
+          : { topic, count, format, text_amount: 'concise' },
         sourceDocumentIds: selectedIds,
       });
       navigate(`/create/${type}/${generation.id}/outline`);
@@ -134,10 +155,50 @@ export default function Brief() {
       </div>
 
       <form onSubmit={handleSubmit} className="card p-7 flex flex-col gap-6">
+        <div className="flex gap-1 p-1 bg-canvas rounded-lg self-start" role="tablist">
+          {[['describe', 'Describe it'], ['paste', 'Paste text']].map(([value, label]) => (
+            <button key={value} type="button" role="tab" aria-selected={mode === value} onClick={() => setMode(value)}
+              className={`px-3.5 py-1.5 rounded-md text-[14px] border-0 cursor-pointer ${
+                mode === value ? 'bg-white text-navy font-semibold shadow-sm' : 'bg-transparent text-slate'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {pasting && (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="source-text" className="label">Your text</label>
+              <span className="hint -mt-1">
+                Notes, an outline or a draft. Put <code>---</code> on its own line to choose where each {isDeck ? 'slide' : 'section'} starts.
+              </span>
+              <textarea id="source-text" className="field min-h-[220px] text-[14px] leading-relaxed font-mono" value={sourceText}
+                onChange={(e) => setSourceText(e.target.value)} autoFocus
+                placeholder={'Supplier scorecard basics\n- Top 25 suppliers by spend\n- Red / amber / green ratings\n---\nWhen to escalate\n- Two quality escapes in a quarter\n- On-time delivery under 90%'} />
+              {parts > 1 && <span className="text-[13px] text-cobalt">{parts} {isDeck ? 'slides' : 'sections'}, split where you put ---</span>}
+            </div>
+            <div className="flex flex-col gap-2">
+              <span className="label">What to do with it</span>
+              <div className="flex flex-wrap gap-2">
+                {TEXT_MODES.map((m) => (
+                  <button key={m.value} type="button" onClick={() => setTextMode(m.value)} title={m.desc}
+                    className={`px-3.5 py-2 rounded-lg border text-left cursor-pointer transition-colors ${
+                      textMode === m.value ? 'border-navy bg-[#EAF0F8] text-navy' : 'border-border bg-white text-ink hover:bg-canvas'}`}>
+                    <span className="block text-[14px] font-semibold">{m.label}</span>
+                    <span className="block text-[12px] text-slate">{m.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-2">
-          <label htmlFor="topic" className="label">What should it cover?</label>
-          <textarea id="topic" className="field min-h-[110px] text-[16px] leading-relaxed" maxLength={2000} value={topic}
-            onChange={(e) => setTopic(e.target.value)} autoFocus
+          <label htmlFor="topic" className="label">
+            {pasting ? <>What is it for? <span className="font-normal text-slate text-[13px]">(optional)</span></> : 'What should it cover?'}
+          </label>
+          <textarea id="topic" className={`field text-[16px] leading-relaxed ${pasting ? 'min-h-[60px]' : 'min-h-[110px]'}`} maxLength={2000} value={topic}
+            onChange={(e) => setTopic(e.target.value)} autoFocus={!pasting}
             placeholder={isDeck
               ? 'e.g. Onboarding deck for new buyers: how to read the supplier scorecard and which suppliers need attention'
               : 'e.g. A procedure guide for incoming inspection, including what to do when a part fails'} />
@@ -158,7 +219,8 @@ export default function Brief() {
         <div className="flex flex-wrap gap-6 items-end">
           <div className="flex flex-col gap-2">
             <label htmlFor="count" className="label">{isDeck ? 'Slides' : 'Sections'}</label>
-            <select id="count" className="field w-[110px]" value={count} onChange={(e) => setCount(Number(e.target.value))}>
+            <select id="count" className="field w-[110px]" value={parts > 1 ? parts : count} disabled={parts > 1}
+              onChange={(e) => setCount(Number(e.target.value))}>
               {counts.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
@@ -177,8 +239,14 @@ export default function Brief() {
         </div>
 
         <fieldset className="border-0 m-0 p-0 flex flex-col gap-3">
-          <legend className="label mb-1">Source documents</legend>
-          <span className="hint -mt-1">{isDeck ? 'Slides are' : 'Content is'} written from the documents you select.</span>
+          <legend className="label mb-1">
+            Source documents{pasting && <span className="font-normal text-slate text-[13px]"> (optional)</span>}
+          </legend>
+          <span className="hint -mt-1">
+            {pasting
+              ? 'Selected documents are used to check and add facts to your text.'
+              : `${isDeck ? 'Slides are' : 'Content is'} written from the documents you select.`}
+          </span>
 
           <div className="flex items-center gap-3">
             <input ref={fileRef} type="file" id="doc-upload" className="hidden"
@@ -225,7 +293,7 @@ export default function Brief() {
         {error && <p className="text-red-700 text-[14px] m-0">{error}</p>}
 
         <div className="flex justify-end">
-          <button type="submit" disabled={submitting || !topic.trim() || selectedIds.length === 0} className="btn-primary">
+          <button type="submit" disabled={submitting || !canSubmit} className="btn-primary">
             <Sparkles size={16} />{submitting ? 'Starting...' : 'Generate outline'}
           </button>
         </div>
