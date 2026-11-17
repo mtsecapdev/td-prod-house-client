@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Send, ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
+import ItemTools from '../components/plan/ItemTools';
 
 /* ── Auto-resizing textarea ── */
 function AutoTextarea({ value, onChange, className = '', ...props }) {
@@ -1332,6 +1333,8 @@ export default function Review() {
                 <X size={14} />
               </button>
             </div>
+            <ItemTools key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
+              onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }} />
             <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
               {chatHistory.length === 0 && <p className="hint text-[13px]">Tell me what to change on this slide.</p>}
               {chatHistory.map((msg, i) => (

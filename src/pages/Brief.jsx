@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Upload, Download, Loader2, Trash2, Copy } from 'lucide-react';
 import { documents, generations } from '../services/api';
+import { KIND } from '../components/plan/kindConfig';
 
 const deckLengths = [
   { value: 'quick', label: 'Quick', desc: '3-5 slides' },
@@ -13,6 +14,12 @@ const docLengths = [
   { value: 'short', label: 'Short', desc: '2-4 pages' },
   { value: 'standard', label: 'Standard', desc: '5-8 pages' },
   { value: 'comprehensive', label: 'Comprehensive', desc: '10-15 pages' },
+];
+
+const audienceLevels = [
+  { value: 'new', label: 'New to it', desc: 'Define terms, no assumed knowledge' },
+  { value: 'familiar', label: 'Familiar', desc: 'Knows the basics' },
+  { value: 'expert', label: 'Expert', desc: 'Precise and dense' },
 ];
 
 const tones = [
@@ -27,9 +34,15 @@ export default function Brief() {
   const type = location.pathname.includes('/doc') ? 'doc' : 'deck';
   const isDeck = type === 'deck';
   const lengths = isDeck ? deckLengths : docLengths;
+  const kind = KIND[type];
   const fileRef = useRef(null);
   const [topic, setTopic] = useState('');
   const [audience, setAudience] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [format, setFormat] = useState(KIND[type].formats[0].value);
+  const [audienceLevel, setAudienceLevel] = useState('new');
+  const [include, setInclude] = useState('');
+  const [exclude, setExclude] = useState('');
   const [tone, setTone] = useState('instructional');
   const [length, setLength] = useState('standard');
   const [docs, setDocs] = useState([]);
@@ -71,6 +84,11 @@ export default function Brief() {
     setAudience(gen.brief.audience || '');
     setTone(gen.brief.tone || 'instructional');
     setLength(gen.brief.length || 'standard');
+    setPurpose(gen.brief.purpose || '');
+    if (gen.brief.format) setFormat(gen.brief.format);
+    if (gen.brief.audience_level) setAudienceLevel(gen.brief.audience_level);
+    setInclude(gen.brief.include || '');
+    setExclude(gen.brief.exclude || '');
     if (gen.source_document_ids) setSelectedIds(gen.source_document_ids);
   }
 
@@ -124,10 +142,12 @@ export default function Brief() {
     try {
       const { generation } = await generations.create({
         type,
-        brief: { topic, audience: audience || undefined, tone, length },
+        brief: {
+          topic, purpose, audience, audience_level: audienceLevel, format, tone, length, include, exclude,
+        },
         sourceDocumentIds: selectedIds,
       });
-      navigate(`/create/${type}/${generation.id}/outline`);
+      navigate(`/create/${type}/${generation.id}/clarify`);
     } catch (err) {
       console.error(err);
       setSubmitting(false);
@@ -138,7 +158,7 @@ export default function Brief() {
     <main className="max-w-[960px] w-[90%] mx-auto py-8 flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <Link to="/" className="btn-ghost"><ArrowLeft size={18} />Back</Link>
-        <span className="hint"><strong className="text-ink">Step 1 of 4</strong> &middot; Brief, outline, generate, review</span>
+        <span className="hint"><strong className="text-ink">Step 1 of 6</strong> &middot; Brief, questions, storyline, outline, write, review</span>
       </div>
 
       <h1 className="font-heading text-[32px] leading-10 font-bold tracking-tight m-0">
@@ -226,6 +246,19 @@ export default function Brief() {
             placeholder="e.g. Safety procedures for engine room operations" />
         </div>
 
+        {/* Purpose — the most useful single input for planning */}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="purpose" className="label">
+            Purpose <span className="font-normal text-slate text-[13px]">(recommended)</span>
+          </label>
+          <span className="hint -mt-1">After this, the {kind.audienceWord} can…</span>
+          <input id="purpose" className="field" maxLength={300} value={purpose}
+            onChange={(e) => setPurpose(e.target.value)}
+            placeholder={isDeck
+              ? 'e.g. read a supplier scorecard and know which suppliers need attention'
+              : 'e.g. carry out an incoming inspection and escalate a failed part'} />
+        </div>
+
         {/* Audience — optional */}
         <div className="flex flex-col gap-2">
           <label htmlFor="audience" className="label">
@@ -235,6 +268,40 @@ export default function Brief() {
             onChange={(e) => setAudience(e.target.value)}
             placeholder="Leave blank for general audience" />
         </div>
+
+        {/* Audience level */}
+        <fieldset className="border-0 m-0 p-0">
+          <legend className="label mb-3">How much does the {kind.audienceWord} already know?</legend>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+            {audienceLevels.map((a) => (
+              <label key={a.value} className={`option ${audienceLevel === a.value ? 'option-selected' : ''}`}>
+                <input type="radio" name="audience_level" value={a.value} checked={audienceLevel === a.value}
+                  onChange={() => setAudienceLevel(a.value)} className="mt-0.5 w-[18px] h-[18px] accent-navy" />
+                <span>
+                  <span className="block font-semibold text-[15px]">{a.label}</span>
+                  <span className="hint">{a.desc}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {/* Format */}
+        <fieldset className="border-0 m-0 p-0">
+          <legend className="label mb-3">{isDeck ? 'How will it be used?' : 'What kind of document?'}</legend>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+            {kind.formats.map((f) => (
+              <label key={f.value} className={`option ${format === f.value ? 'option-selected' : ''}`}>
+                <input type="radio" name="format" value={f.value} checked={format === f.value}
+                  onChange={() => setFormat(f.value)} className="mt-0.5 w-[18px] h-[18px] accent-navy" />
+                <span>
+                  <span className="block font-semibold text-[15px]">{f.label}</span>
+                  <span className="hint">{f.desc}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         {/* Tone */}
         <fieldset className="border-0 m-0 p-0">
@@ -270,10 +337,30 @@ export default function Brief() {
           </div>
         </fieldset>
 
+        {/* Include / leave out — optional */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="include" className="label">
+              Must include <span className="font-normal text-slate text-[13px]">(optional)</span>
+            </label>
+            <textarea id="include" className="field min-h-[72px]" value={include}
+              onChange={(e) => setInclude(e.target.value)}
+              placeholder="Topics, examples or figures that have to be in it" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="exclude" className="label">
+              Leave out <span className="font-normal text-slate text-[13px]">(optional)</span>
+            </label>
+            <textarea id="exclude" className="field min-h-[72px]" value={exclude}
+              onChange={(e) => setExclude(e.target.value)}
+              placeholder="Anything that should not appear" />
+          </div>
+        </div>
+
         <div className="flex justify-end">
           <button type="submit" disabled={submitting || !topic.trim() || selectedIds.length === 0}
             className="btn-primary">
-            {submitting ? 'Generating outline...' : 'Generate outline'}
+            {submitting ? 'Starting...' : 'Continue'}
           </button>
         </div>
       </form>

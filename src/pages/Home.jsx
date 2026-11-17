@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FileSliders, FileText, Image, ArrowRight, Trash2, Upload, Download, ChevronDown, ChevronUp, FolderOpen, Check, X } from 'lucide-react';
 import { generations, documents } from '../services/api';
 import { useUpload } from '../contexts/UploadContext';
+import { resumePath } from '../components/plan/kindConfig';
 
 const types = [
   { type: 'deck', label: 'Slide deck', desc: 'Training presentations with diagrams, key stats and timelines', icon: FileSliders, to: '/create/deck' },
@@ -12,9 +13,12 @@ const types = [
 
 const statusLabels = {
   pending: 'Ready',
+  brief: 'Questions',
+  storyline_ready: 'Storyline',
   outline_ready: 'Outline ready',
   prompt_ready: 'Prompt ready',
   generating: 'Generating',
+  writing: 'Writing',
   done: 'Review',
   failed: 'Failed',
 };
@@ -28,10 +32,7 @@ function getResumeUrl(g) {
     if (g.status === 'generating') return `${base}/progress`;
     return null;
   }
-  if (g.status === 'done') return `${base}/review`;
-  if (g.status === 'generating') return `${base}/progress`;
-  if (g.status === 'outline_ready') return `${base}/outline`;
-  return null;
+  return resumePath(g);
 }
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -88,7 +89,8 @@ export default function Home() {
       const list = data.generations || data || [];
       const cutoff = Date.now() - SEVEN_DAYS;
       const resumable = list
-        .filter((g) => ['pending', 'outline_ready', 'prompt_ready', 'generating', 'done'].includes(g.status)
+        // Every status a user can resume from; 'failed' is the old flow's dead end.
+        .filter((g) => g.status in statusLabels && g.status !== 'failed'
           && new Date(g.updated_at || g.created_at).getTime() > cutoff)
         .slice(0, 3);
       setRecentWork(resumable);
@@ -163,7 +165,7 @@ export default function Home() {
                     g.status === 'done' ? 'bg-emerald-50 text-emerald-700' :
                     g.status === 'generating' ? 'bg-amber-50 text-amber-700' :
                     'bg-canvas text-slate'
-                  }`}>{statusLabels[g.status]}</span>
+                  }`}>{g.job?.state === 'failed' ? 'Needs retry' : statusLabels[g.status]}</span>
                   {confirmId === g.id ? (
                     <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.preventDefault()}>
                       <span className="text-[13px] text-red-600">Delete draft?</span>

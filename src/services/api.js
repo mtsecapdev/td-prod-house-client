@@ -89,6 +89,23 @@ export const generations = {
   create: (body) => request('/generations', { method: 'POST', body: JSON.stringify(body) }),
   get: (id) => request(`/generations/${id}`),
   list: () => request('/generations'),
+  // ── Planning (decks and documents) ──
+  updateBrief: (id, brief) => request(`/generations/${id}/brief`, { method: 'PUT', body: JSON.stringify({ brief }) }),
+  regenerateQuestions: (id) => request(`/generations/${id}/questions`, { method: 'POST' }),
+  createStoryline: (id, instruction) =>
+    request(`/generations/${id}/storyline`, { method: 'POST', body: JSON.stringify({ instruction }) }),
+  updateStoryline: (id, storyline) =>
+    request(`/generations/${id}/storyline`, { method: 'PUT', body: JSON.stringify({ storyline }) }),
+  createOutline: (id, instruction) =>
+    request(`/generations/${id}/outline`, { method: 'POST', body: JSON.stringify({ instruction }) }),
+  refreshItemSources: (id, index, item) =>
+    request(`/generations/${id}/outline/${index}/sources`, { method: 'POST', body: JSON.stringify({ item }) }),
+  findSources: (id, q) => request(`/generations/${id}/sources?q=${encodeURIComponent(q)}`),
+  regenerateItem: (type, id, index, note) =>
+    request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}/${index}/regenerate`, {
+      method: 'POST', body: JSON.stringify({ note }),
+    }),
+
   updateOutline: (id, outline) =>
     request(`/generations/${id}/outline`, { method: 'PUT', body: JSON.stringify({ outline }) }),
 

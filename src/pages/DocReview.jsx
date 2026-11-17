@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Send, Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
+import ItemTools from '../components/plan/ItemTools';
 
 function AutoTextarea({ value, onChange, className = '', ...props }) {
   const ref = useRef(null);
@@ -725,6 +726,8 @@ export default function DocReview() {
                 <X size={14} />
               </button>
             </div>
+            <ItemTools key={activeSection} type="doc" genId={id} index={activeSection} item={sections[activeSection]}
+              onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }} />
             <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
               {chatHistory.length === 0 && <p className="hint text-[13px]">Tell me what to change in this section.</p>}
               {chatHistory.map((msg, i) => (

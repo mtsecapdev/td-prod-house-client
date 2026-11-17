@@ -43,7 +43,7 @@ export default function DocProgress() {
   return (
     <main className="max-w-[960px] w-[90%] mx-auto py-8 flex flex-col gap-6">
       <div className="text-center">
-        <span className="hint"><strong className="text-ink">Step 3 of 4</strong> &middot; Brief, outline, generate, review</span>
+        <span className="hint"><strong className="text-ink">Step 5 of 6</strong> &middot; Brief, questions, storyline, outline, write, review</span>
       </div>
 
       <div className="card p-8 flex flex-col items-center gap-6">
@@ -51,6 +51,7 @@ export default function DocProgress() {
           <div className="text-center">
             <h1 className="font-heading text-2xl font-bold text-[#BA1A1A] m-0">Generation failed</h1>
             <p className="text-[15px] text-slate max-w-md mt-2">{error}</p>
+            <button type="button" onClick={() => window.location.reload()} className="btn-primary mt-4">Retry from where it stopped</button>
           </div>
         ) : (
           <>
