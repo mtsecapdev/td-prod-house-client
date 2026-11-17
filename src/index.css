@@ -2,7 +2,9 @@
 @import '@fontsource-variable/hanken-grotesk';
 @import '@fontsource-variable/inter';
 
-@theme inline {
+/* Not "inline": utilities reference these variables, so a deck's template can override them on the slide
+   preview (see templateStyle in components/plan/templates.js). */
+@theme {
   --font-heading: 'Hanken Grotesk Variable', 'Hanken Grotesk', system-ui, sans-serif;
   --font-body: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
@@ -19,6 +21,14 @@
 
   --shadow-card: 0 1px 3px 0 rgba(11, 25, 44, 0.04), 0 1px 2px -1px rgba(11, 25, 44, 0.03);
   --shadow-raised: 0 8px 16px -4px rgba(15, 43, 72, 0.08), 0 2px 6px -2px rgba(15, 43, 72, 0.04);
+}
+
+/* Template colours used by the slide preview that have no utility of their own (default: Harbour). */
+:root {
+  --t-primary-mid: #163A60;
+  --t-primary-light: #1E4A7A;
+  --t-accent-light: #60A5FA;
+  --t-text-light: #94A3B8;
 }
 
 @layer base {

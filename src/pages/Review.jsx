@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import { Send, ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare } from 'lucide-react';
+import { useParams, Link } from 'react-router-dom';
+import { Send, ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare, Loader2, Pencil } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import ItemTools from '../components/plan/ItemTools';
+import { useLiveWrite } from '../components/plan/useLiveWrite';
+import { useTemplates, findTemplate, templateStyle } from '../components/plan/templates';
 
 /* ── Auto-resizing textarea ── */
 function AutoTextarea({ value, onChange, className = '', ...props }) {
@@ -19,7 +21,7 @@ function AutoTextarea({ value, onChange, className = '', ...props }) {
   );
 }
 
-const inputBase = 'w-full bg-transparent border-0 outline-none px-0 py-0.5 rounded-sm transition-colors focus:bg-[#F0F4F8]';
+const inputBase = 'w-full bg-transparent border-0 outline-none px-0 py-0.5 rounded-sm transition-colors focus:bg-[var(--color-canvas)]';
 
 const SLIDE_W = 960;
 const SLIDE_H = 540;
@@ -90,18 +92,18 @@ function SlideFrame({ children, noPad = false }) {
 function TitleSlide({ content, onField }) {
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0F2B48] via-[#163A60] to-[#1E4A7A]" />
-      <div className="absolute top-0 right-0 w-[60%] h-full bg-gradient-to-l from-[#2563EB]/15 to-transparent" />
-      <div className="absolute bottom-0 left-0 w-full h-[3px] bg-gradient-to-r from-[#2563EB] via-[#60A5FA] to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-navy)] via-[var(--t-primary-mid)] to-[var(--t-primary-light)]" />
+      <div className="absolute top-0 right-0 w-[60%] h-full bg-gradient-to-l from-[var(--color-cobalt)]/15 to-transparent" />
+      <div className="absolute bottom-0 left-0 w-full h-[3px] bg-gradient-to-r from-[var(--color-cobalt)] via-[var(--t-accent-light)] to-transparent" />
       <div className="relative z-10 flex flex-col items-start justify-center h-full px-10 py-8 gap-3">
         <AutoTextarea value={content.title}
           onChange={(val) => onField('title', val)}
           className={`${inputBase} font-heading text-[28px] leading-[1.15] font-bold tracking-tight text-white`}
           placeholder="Deck title" />
-        <div className="w-10 h-[3px] bg-[#60A5FA] rounded-full" />
+        <div className="w-10 h-[3px] bg-[var(--t-accent-light)] rounded-full" />
         <AutoTextarea value={content.subtitle}
           onChange={(val) => onField('subtitle', val)}
-          className={`${inputBase} text-[14px] leading-relaxed text-[#94A3B8] max-w-[75%]`}
+          className={`${inputBase} text-[14px] leading-relaxed text-[var(--t-text-light)] max-w-[75%]`}
           placeholder="Subtitle" />
       </div>
     </div>
@@ -118,7 +120,7 @@ function BulletsSlide({ content, onField, onBullet, onMoveBullet, onAddBullet, o
           className={`${inputBase} font-heading text-[20px] leading-7 font-bold tracking-tight text-navy`}
           placeholder="Slide title" />
       </div>
-      <div className="w-full h-px bg-gradient-to-r from-[#E2E8F0] via-[#E2E8F0] to-transparent mb-2" />
+      <div className="w-full h-px bg-gradient-to-r from-[var(--color-border)] via-[var(--color-border)] to-transparent mb-2" />
       {content.bullets && (
         <ol className="list-none m-0 p-0 flex flex-col gap-0 flex-1">
           {content.bullets.map((b, i) => (
@@ -211,7 +213,7 @@ function TwoColumnSlide({ content, onField, onColumnBullet, onAddColumnBullet, o
         <div className="bg-gradient-to-b from-transparent via-[#CBD5E1] to-transparent my-3" />
         {renderColumn('b', content.column_b_heading, content.column_b_bullets, 'bg-[#10B981]')}
       </div>
-      <div className="flex items-center gap-2 border-t border-[#E2E8F0] pt-2 px-3">
+      <div className="flex items-center gap-2 border-t border-[var(--color-border)] pt-2 px-3">
         <span className="text-[12px] font-bold text-cobalt shrink-0">Verdict</span>
         <input type="text" value={content.verdict || ''}
           onChange={(e) => onField('verdict', e.target.value)}
@@ -236,7 +238,7 @@ function KeyStatsSlide({ content, onField, onStat, onAddStat, onRemoveStat }) {
       </div>
       <div className="grid gap-3 flex-1 min-h-0" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
         {stats.map((st, i) => (
-          <div key={i} className="group relative bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg border-t-[3px] border-t-cobalt p-3 flex flex-col gap-1 min-w-0">
+          <div key={i} className="group relative bg-[#F8FAFC] border border-[var(--color-border)] rounded-lg border-t-[3px] border-t-cobalt p-3 flex flex-col gap-1 min-w-0">
             <input type="text" value={st.value}
               onChange={(e) => onStat(i, 'value', e.target.value)}
               className={`${inputBase} font-heading text-[26px] font-extrabold text-cobalt leading-none`}
@@ -262,7 +264,7 @@ function KeyStatsSlide({ content, onField, onStat, onAddStat, onRemoveStat }) {
   );
 }
 
-function DiagramSlide({ content, genId, onField }) {
+function DiagramSlide({ content, genId, templateId, onField }) {
   return (
     <div className="flex flex-col gap-2 h-full">
       <div className="flex items-center gap-2">
@@ -274,7 +276,7 @@ function DiagramSlide({ content, genId, onField }) {
       </div>
       <div className="flex-1 min-h-0 flex items-center justify-center">
         {content.diagram_file
-          ? <img src={generations.diagramUrl(genId, content.diagram_file)} alt={content.caption || content.title}
+          ? <img src={generations.diagramUrl(genId, content.diagram_file, templateId)} alt={content.caption || content.title}
               className="max-w-full max-h-full object-contain" />
           : <p className="hint">Diagram not rendered yet.</p>}
       </div>
@@ -323,7 +325,7 @@ function StatFocusSlide({ content, onField }) {
 function QuoteHighlightSlide({ content, onField }) {
   return (
     <div className="flex h-full relative">
-      <div className="absolute inset-y-0 left-0 w-[4px] bg-gradient-to-b from-cobalt via-[#60A5FA] to-cobalt/30 rounded-full" />
+      <div className="absolute inset-y-0 left-0 w-[4px] bg-gradient-to-b from-cobalt via-[var(--t-accent-light)] to-cobalt/30 rounded-full" />
       <div className="absolute top-4 left-8 text-[56px] font-heading text-cobalt/10 leading-none select-none pointer-events-none">&ldquo;</div>
       <div className="flex flex-col flex-1 pl-7 pr-3 py-3 gap-1.5">
         <div className="flex items-center gap-2">
@@ -369,7 +371,7 @@ function ChecklistSlide({ content, onField, onItem, onAddItem, onRemoveItem }) {
         <ol className="list-none m-0 p-0 flex flex-col gap-0 flex-1">
           {content.items.map((item, i) => (
             <li key={i} className="group flex gap-2 items-start py-1 px-1.5 -mx-1.5 rounded-md hover:bg-[#F8FAFC] transition-colors">
-              <div className="w-[24px] h-[24px] rounded-md bg-gradient-to-br from-navy to-[#1E4A7A] text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+              <div className="w-[24px] h-[24px] rounded-md bg-gradient-to-br from-navy to-[var(--t-primary-light)] text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
                 {i + 1}
               </div>
               <div className="flex-1 min-w-0">
@@ -397,36 +399,36 @@ function ChecklistSlide({ content, onField, onItem, onAddItem, onRemoveItem }) {
 function ClosingSlide({ content, onField, onTakeaway, onAddTakeaway, onRemoveTakeaway }) {
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0F2B48] via-[#163A60] to-[#1E4A7A]" />
-      <div className="absolute top-0 right-0 w-[60%] h-full bg-gradient-to-l from-[#2563EB]/15 to-transparent" />
-      <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-[#2563EB] via-[#60A5FA] to-transparent" />
-      <div className="absolute bottom-0 left-0 w-full h-[3px] bg-gradient-to-r from-[#2563EB] via-[#60A5FA] to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-navy)] via-[var(--t-primary-mid)] to-[var(--t-primary-light)]" />
+      <div className="absolute top-0 right-0 w-[60%] h-full bg-gradient-to-l from-[var(--color-cobalt)]/15 to-transparent" />
+      <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-[var(--color-cobalt)] via-[var(--t-accent-light)] to-transparent" />
+      <div className="absolute bottom-0 left-0 w-full h-[3px] bg-gradient-to-r from-[var(--color-cobalt)] via-[var(--t-accent-light)] to-transparent" />
       <div className="relative z-10 flex flex-col h-full px-8 py-5 gap-2">
         <input type="text" value={content.title}
           onChange={(e) => onField('title', e.target.value)}
           className={`${inputBase} font-heading text-[22px] font-bold text-white`}
           placeholder="Closing title" />
-        <div className="w-10 h-[3px] bg-[#60A5FA] rounded-full mb-1" />
+        <div className="w-10 h-[3px] bg-[var(--t-accent-light)] rounded-full mb-1" />
         <ol className="list-none m-0 p-0 flex flex-col gap-0.5 flex-1">
           {(content.takeaways || []).map((t, i) => (
             <li key={i} className="group flex gap-2 items-start py-0.5">
-              <div className="w-[20px] h-[20px] rounded-full bg-[#2563EB] text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">✓</div>
+              <div className="w-[20px] h-[20px] rounded-full bg-[var(--color-cobalt)] text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">✓</div>
               <AutoTextarea value={t}
                 onChange={(val) => onTakeaway(i, val)}
                 className={`${inputBase} text-[12px] text-white leading-snug flex-1`}
                 placeholder="Takeaway" />
               <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                 <button type="button" onClick={() => onAddTakeaway(i)}
-                  className="p-0 w-3.5 h-3.5 flex items-center justify-center text-[#94A3B8] hover:text-white cursor-pointer bg-transparent border-0"><Plus size={10} /></button>
+                  className="p-0 w-3.5 h-3.5 flex items-center justify-center text-[var(--t-text-light)] hover:text-white cursor-pointer bg-transparent border-0"><Plus size={10} /></button>
                 <button type="button" onClick={() => onRemoveTakeaway(i)} disabled={(content.takeaways || []).length <= 1}
-                  className="p-0 w-3.5 h-3.5 flex items-center justify-center text-[#94A3B8] hover:text-red-400 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><X size={10} /></button>
+                  className="p-0 w-3.5 h-3.5 flex items-center justify-center text-[var(--t-text-light)] hover:text-red-400 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><X size={10} /></button>
               </div>
             </li>
           ))}
         </ol>
         <AutoTextarea value={content.call_to_action || ''}
           onChange={(val) => onField('call_to_action', val)}
-          className={`${inputBase} text-[12px] text-[#60A5FA] font-semibold leading-snug`}
+          className={`${inputBase} text-[12px] text-[var(--t-accent-light)] font-semibold leading-snug`}
           placeholder="Call to action (optional)" />
       </div>
     </div>
@@ -436,9 +438,9 @@ function ClosingSlide({ content, onField, onTakeaway, onAddTakeaway, onRemoveTak
 function SectionDividerSlide({ content, onField }) {
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#163A60] to-[#1E4A7A]" />
-      <div className="absolute top-0 right-0 w-[50%] h-full bg-gradient-to-l from-[#1E4A7A]/50 to-transparent" />
-      <div className="absolute top-[52%] left-0 w-full h-[3px] bg-[#2563EB]" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--t-primary-mid)] to-[var(--t-primary-light)]" />
+      <div className="absolute top-0 right-0 w-[50%] h-full bg-gradient-to-l from-[var(--t-primary-light)]/50 to-transparent" />
+      <div className="absolute top-[52%] left-0 w-full h-[3px] bg-[var(--color-cobalt)]" />
       <div className="relative z-10 flex flex-col justify-center h-full px-10 py-8 gap-2">
         <AutoTextarea value={content.title}
           onChange={(val) => onField('title', val)}
@@ -446,7 +448,7 @@ function SectionDividerSlide({ content, onField }) {
           placeholder="Section title" />
         <AutoTextarea value={content.subtitle}
           onChange={(val) => onField('subtitle', val)}
-          className={`${inputBase} text-[15px] leading-relaxed text-[#94A3B8] max-w-[70%] mt-2`}
+          className={`${inputBase} text-[15px] leading-relaxed text-[var(--t-text-light)] max-w-[70%] mt-2`}
           placeholder="Subtitle" />
       </div>
     </div>
@@ -457,7 +459,7 @@ function BigIdeaSlide({ content, onField }) {
   return (
     <div className="flex flex-col h-full relative">
       <div className="absolute inset-y-0 left-0 w-[6px] bg-cobalt" />
-      <div className="absolute top-3 left-6 text-[60px] font-heading text-[#E2E8F0] leading-none select-none pointer-events-none">&ldquo;</div>
+      <div className="absolute top-3 left-6 text-[60px] font-heading text-[var(--color-border)] leading-none select-none pointer-events-none">&ldquo;</div>
       <div className="relative z-10 flex flex-col justify-center h-full pl-10 pr-6 gap-3">
         <AutoTextarea value={content.statement}
           onChange={(val) => onField('statement', val)}
@@ -489,7 +491,7 @@ function TimelineSlide({ content, onField, onEvent, onAddEvent, onRemoveEvent })
           <div key={i} className="group flex flex-col items-center flex-1 min-w-[100px] relative px-1">
             <div className="w-[10px] h-[10px] rounded-full bg-cobalt shrink-0 mt-1 z-10" />
             {i < (content.events || []).length - 1 && (
-              <div className="absolute top-[6px] left-1/2 w-full h-[2px] bg-[#E2E8F0] z-0" />
+              <div className="absolute top-[6px] left-1/2 w-full h-[2px] bg-[var(--color-border)] z-0" />
             )}
             <input type="text" value={ev.date}
               onChange={(e) => onEvent(i, 'date', e.target.value)}
@@ -529,7 +531,7 @@ function ProcessFlowSlide({ content, onField, onStep, onAddStep, onRemoveStep })
       <div className="flex-1 flex items-center gap-1 overflow-x-auto px-1">
         {(content.steps || []).map((step, i) => (
           <div key={i} className="group flex items-center gap-1 flex-1 min-w-[80px]">
-            <div className="flex flex-col items-center gap-1 flex-1 bg-[#F0F4F8] rounded-lg p-2 min-h-[120px]">
+            <div className="flex flex-col items-center gap-1 flex-1 bg-[var(--color-canvas)] rounded-lg p-2 min-h-[120px]">
               <div className="w-[28px] h-[28px] rounded-full bg-cobalt text-white text-[12px] font-bold flex items-center justify-center shrink-0">
                 {i + 1}
               </div>
@@ -573,7 +575,7 @@ function IconGridSlide({ content, onField, onItem, onAddItem, onRemoveItem }) {
       <div className="w-full h-px bg-cobalt/30" />
       <div className={`flex-1 grid gap-2 p-1`} style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
         {items.map((item, i) => (
-          <div key={i} className="group bg-white border border-[#E2E8F0] rounded-lg p-2 flex flex-col gap-1 min-h-0">
+          <div key={i} className="group bg-white border border-[var(--color-border)] rounded-lg p-2 flex flex-col gap-1 min-h-0">
             <div className="flex items-center gap-1.5">
               <div className="w-[24px] h-[24px] rounded-full bg-cobalt/10 text-cobalt text-[10px] font-bold flex items-center justify-center shrink-0 uppercase">
                 {(item.icon || '●').slice(0, 1)}
@@ -629,16 +631,16 @@ function ComparisonTableSlide({ content, onField, onCell, onColumnHeader, onAddR
           </thead>
           <tbody>
             {rows.map((row, ri) => (
-              <tr key={ri} className={`group ${ri % 2 === 0 ? 'bg-[#F0F4F8]' : 'bg-white'}`}>
+              <tr key={ri} className={`group ${ri % 2 === 0 ? 'bg-[var(--color-canvas)]' : 'bg-white'}`}>
                 {columns.map((_, ci) => (
-                  <td key={ci} className="px-2 py-1 border-b border-[#E2E8F0]">
+                  <td key={ci} className="px-2 py-1 border-b border-[var(--color-border)]">
                     <input type="text" value={(row[ci] || '')}
                       onChange={(e) => onCell(ri, ci, e.target.value)}
                       className={`${inputBase} text-[11px] text-navy`}
                       placeholder="-" />
                   </td>
                 ))}
-                <td className="px-0.5 border-b border-[#E2E8F0]">
+                <td className="px-0.5 border-b border-[var(--color-border)]">
                   <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button type="button" onClick={() => onAddRow(ri)}
                       className="p-0 w-3 h-3 flex items-center justify-center text-slate hover:text-cobalt cursor-pointer bg-transparent border-0"><Plus size={8} /></button>
@@ -863,6 +865,10 @@ export default function Review() {
   const saveTimer = useRef(null);
   const undoStack = useRef({});
   const redoStack = useRef({});
+  // Slides that are not written yet are written now and appear one by one.
+  const live = useLiveWrite(id, gen, setGen, 'slides');
+  const templateData = useTemplates();
+  const template = findTemplate(templateData, gen?.brief?.template);
 
   useEffect(() => {
     function onBeforeUnload(e) {
@@ -1148,7 +1154,15 @@ export default function Review() {
   }
 
   function renderSlide() {
-    if (!content) return <p className="hint">No content generated for this slide.</p>;
+    if (!content) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
+          {live.phase === 'error'
+            ? <p className="text-red-700 text-[14px] m-0">Writing stopped: {live.message}</p>
+            : <><Loader2 size={28} className="text-cobalt animate-spin" /><p className="text-[16px] text-slate m-0">Writing “{slide.title}”…</p></>}
+        </div>
+      );
+    }
 
     const onField = updateSlideField;
 
@@ -1188,13 +1202,19 @@ export default function Review() {
         return <KeyStatsSlide content={content} onField={onField}
           onStat={updateStat} onAddStat={addStat} onRemoveStat={removeStat} />;
       case 'diagram':
-        return <DiagramSlide content={content} genId={id} onField={onField} />;
+        return <DiagramSlide content={content} genId={id} templateId={template?.id} onField={onField} />;
       case 'bullets':
       default:
         return <BulletsSlide content={content} onField={onField}
           onBullet={updateBullet} onMoveBullet={moveBullet} onAddBullet={addBullet} onRemoveBullet={removeBullet}
           dragHandlers={dragHandlers} />;
     }
+  }
+
+  // Switching template is instant: it only restyles the preview and the next download.
+  async function changeTemplate(templateId) {
+    setGen((g) => ({ ...g, brief: { ...g.brief, template: templateId } }));
+    try { await generations.updateBrief(id, { template: templateId }); } catch (err) { console.error('Template change failed:', err); }
   }
 
   async function handleOpenDeckCraft() {
@@ -1230,6 +1250,25 @@ export default function Review() {
           </h1>
           <span className="chip-muted text-[11px]">Draft</span>
           {saving && <span className="text-xs text-slate animate-pulse">Saving...</span>}
+          {live.phase === 'writing' && (
+            <span className="text-[12px] text-cobalt flex items-center gap-1">
+              <Loader2 size={12} className="animate-spin" />Writing {Math.min(live.current || 1, slides.length)} of {slides.length}
+            </span>
+          )}
+          {live.phase === 'error' && (
+            <button type="button" onClick={live.retry} className="text-[12px] text-red-700 bg-transparent border-0 cursor-pointer underline">
+              Writing stopped. Retry
+            </button>
+          )}
+          <Link to={`/create/deck/${id}/outline`} className="text-[12px] text-slate flex items-center gap-1 no-underline hover:text-navy">
+            <Pencil size={11} />Outline
+          </Link>
+          {templateData.templates.length > 0 && (
+            <select className="field py-0.5 px-1.5 text-[12px] w-auto" aria-label="Template" title="Template"
+              value={template?.id || ''} onChange={(e) => changeTemplate(e.target.value)}>
+              {templateData.templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
           <span className="text-[12px] text-slate hidden sm:inline">{slides.length} slides</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -1277,7 +1316,7 @@ export default function Review() {
                   className={`w-full flex flex-col lg:flex-row gap-1 lg:gap-2 items-center min-h-[40px] px-1 lg:px-1.5 py-1 rounded-lg text-left cursor-pointer border-2 transition-all ${
                     i === activeSlide ? 'border-navy bg-[#F5F8FC] shadow-sm' : 'border-transparent hover:bg-[#F0F4F8] hover:border-[#E2E8F0]'
                   }`}>
-                  <div className="w-[52px] h-[30px] lg:w-[44px] lg:h-[26px] shrink-0 rounded-[3px] overflow-hidden shadow-sm">
+                  <div className={`w-[52px] h-[30px] lg:w-[44px] lg:h-[26px] shrink-0 rounded-[3px] overflow-hidden shadow-sm ${s.content ? '' : 'opacity-30 animate-pulse'}`}>
                     <SlideThumbnail layout={s.layout || 'bullets'} />
                   </div>
                   <div className="flex-1 min-w-0 w-full">
@@ -1295,7 +1334,7 @@ export default function Review() {
         {/* Slide preview — center, fills remaining space */}
         <div className="flex-1 min-w-0 flex flex-col bg-[#E8ECF0] overflow-hidden">
           <SlideFitContainer>
-            <article className="rounded-lg shadow-lg overflow-hidden relative bg-white w-full h-full">
+            <article className="rounded-lg shadow-lg overflow-hidden relative bg-white w-full h-full" style={templateStyle(template)}>
               <SlideFrame noPad={layout === 'title' || layout === 'closing' || layout === 'section_divider'}>{renderSlide()}</SlideFrame>
             </article>
           </SlideFitContainer>
@@ -1303,7 +1342,7 @@ export default function Review() {
           {/* Diagram code and PNG download — kept outside the scaled slide so it stays readable */}
           {layout === 'diagram' && content && (
             <div className="shrink-0 border-t border-border bg-white px-4 py-2 max-h-[45%] overflow-y-auto">
-              <DiagramCodePanel key={activeSlide} genId={id} content={content}
+              <DiagramCodePanel key={activeSlide} genId={id} content={content} templateId={template?.id}
                 downloadName={content.title || 'diagram'}
                 onApply={(code, key) => updateSlideFields({ mermaid_code: code, diagram_file: key })} />
             </div>
@@ -1334,7 +1373,11 @@ export default function Review() {
               </button>
             </div>
             <ItemTools key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
-              onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }} />
+              onUpdated={async (result) => {
+                const r = await generations.get(id);
+                setGen(r.generation);
+                if (result?.index !== undefined) setActiveSlide(result.index);
+              }} />
             <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
               {chatHistory.length === 0 && <p className="hint text-[13px]">Tell me what to change on this slide.</p>}
               {chatHistory.map((msg, i) => (

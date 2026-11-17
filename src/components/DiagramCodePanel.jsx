@@ -3,7 +3,7 @@ import { Code2, Download, Loader2 } from 'lucide-react';
 import { generations } from '../services/api';
 
 /* Code editor for a diagram, shown outside the scaled slide or inline in a document. */
-export default function DiagramCodePanel({ genId, content, onApply, downloadName }) {
+export default function DiagramCodePanel({ genId, content, onApply, downloadName, templateId }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(content.mermaid_code || '');
   const [error, setError] = useState(null);
@@ -29,7 +29,7 @@ export default function DiagramCodePanel({ genId, content, onApply, downloadName
           <Code2 size={13} />{open ? 'Hide code' : 'Edit code'}
         </button>
         {content.diagram_file && (
-          <a href={generations.diagramDownloadUrl(genId, content.diagram_file, downloadName)}
+          <a href={generations.diagramDownloadUrl(genId, content.diagram_file, downloadName, templateId)}
             className="btn-outline text-[12px] gap-1 py-1 px-2 no-underline">
             <Download size={13} />PNG
           </a>

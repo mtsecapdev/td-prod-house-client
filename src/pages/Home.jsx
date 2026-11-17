@@ -12,9 +12,7 @@ const types = [
 ];
 
 const statusLabels = {
-  pending: 'Ready',
-  brief: 'Questions',
-  storyline_ready: 'Storyline',
+  pending: 'Planning',
   outline_ready: 'Outline ready',
   prompt_ready: 'Prompt ready',
   generating: 'Generating',

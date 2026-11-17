@@ -39,6 +39,8 @@ export const KIND = {
     options: LAYOUT_OPTIONS,
     defaultType: 'bullets',
     audienceWord: 'audience',
+    countRange: [3, 25],
+    defaultCount: 8,
     formats: [
       { value: 'presented', label: 'Presented', desc: 'A speaker talks over the slides' },
       { value: 'read', label: 'Read alone', desc: 'Slides explain themselves' },
@@ -55,6 +57,8 @@ export const KIND = {
     options: SECTION_TYPE_OPTIONS,
     defaultType: 'body',
     audienceWord: 'reader',
+    countRange: [3, 20],
+    defaultCount: 8,
     formats: [
       { value: 'learning', label: 'Learning guide', desc: 'Read through once' },
       { value: 'reference', label: 'Reference', desc: 'Looked up when needed' },
@@ -63,20 +67,18 @@ export const KIND = {
   },
 };
 
+export const TEXT_AMOUNTS = [
+  { value: 'minimal', label: 'Minimal', desc: 'Headlines, detail in notes' },
+  { value: 'concise', label: 'Concise', desc: 'Short points' },
+  { value: 'detailed', label: 'Detailed', desc: 'Full sentences' },
+];
+
 export function typeLabel(kind, key) {
   return kind.options.find((o) => o.key === key)?.label || key;
 }
 
-/** Where a deck or document should open, given how far its plan has got. */
+/** Where a deck or document should open, given how far it has got. */
 export function resumePath(g) {
   const base = `/create/${g.type}/${g.id}`;
-  switch (g.status) {
-    case 'brief': return `${base}/clarify`;
-    case 'storyline_ready': return `${base}/storyline`;
-    case 'outline_ready': return `${base}/outline`;
-    case 'writing':
-    case 'generating': return `${base}/progress`;
-    case 'done': return `${base}/review`;
-    default: return `${base}/outline`;
-  }
+  return ['writing', 'generating', 'done'].includes(g.status) ? `${base}/review` : `${base}/outline`;
 }

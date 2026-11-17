@@ -91,89 +91,52 @@ export const generations = {
   list: () => request('/generations'),
   // ── Planning (decks and documents) ──
   updateBrief: (id, brief) => request(`/generations/${id}/brief`, { method: 'PUT', body: JSON.stringify({ brief }) }),
-  regenerateQuestions: (id) => request(`/generations/${id}/questions`, { method: 'POST' }),
-  createStoryline: (id, instruction) =>
-    request(`/generations/${id}/storyline`, { method: 'POST', body: JSON.stringify({ instruction }) }),
-  updateStoryline: (id, storyline) =>
-    request(`/generations/${id}/storyline`, { method: 'PUT', body: JSON.stringify({ storyline }) }),
-  createOutline: (id, instruction) =>
-    request(`/generations/${id}/outline`, { method: 'POST', body: JSON.stringify({ instruction }) }),
+  templates: () => request('/generations/templates'),
+
+  // Re-plans the outline (optionally saving brief changes first). Runs as a job; poll the generation.
+  createOutline: (id, brief) =>
+    request(`/generations/${id}/outline`, { method: 'POST', body: JSON.stringify({ brief }) }),
   refreshItemSources: (id, index, item) =>
     request(`/generations/${id}/outline/${index}/sources`, { method: 'POST', body: JSON.stringify({ item }) }),
   findSources: (id, q) => request(`/generations/${id}/sources?q=${encodeURIComponent(q)}`),
-  regenerateItem: (type, id, index, note) =>
+  // Rewrites one slide/section; `type` switches its layout ("try a different layout").
+  regenerateItem: (type, id, index, { note, type: itemType } = {}) =>
     request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}/${index}/regenerate`, {
-      method: 'POST', body: JSON.stringify({ note }),
+      method: 'POST', body: JSON.stringify({ note, type: itemType }),
     }),
+  // "Add with AI": plans and writes a new slide/section after index `after`.
+  addItem: (type, id, after, description) =>
+    request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}`, {
+      method: 'POST', body: JSON.stringify({ after, description }),
+    }),
+
+  // Writes every slide/section that has no content yet, streaming events: start, slide|section (progress),
+  // item_done {index, item}, done, error. If a write is already running, streams that one instead.
+  write: async (id, onMessage, signal) => {
+    const res = await fetch(`${BASE}/generations/${id}/write`, { method: 'POST', signal });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split('\n\n');
+      buffer = events.pop();
+      for (const event of events) {
+        if (event.startsWith('data: ')) onMessage(JSON.parse(event.slice(6)));
+      }
+    }
+  },
 
   updateOutline: (id, outline) =>
     request(`/generations/${id}/outline`, { method: 'PUT', body: JSON.stringify({ outline }) }),
-
-  generateSlides: (id, onMessage) => {
-    return new Promise((resolve, reject) => {
-      fetch(`${BASE}/generations/${id}/generate`, { method: 'POST' })
-        .then((res) => {
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-
-          function read() {
-            reader.read().then(({ done, value }) => {
-              if (done) return resolve();
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n\n');
-              buffer = lines.pop();
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try {
-                    onMessage(JSON.parse(line.slice(6)));
-                  } catch {}
-                }
-              }
-              read();
-            }).catch(reject);
-          }
-          read();
-        })
-        .catch(reject);
-    });
-  },
 
   editSlide: (id, slideIndex, instruction, history = []) =>
     request(`/generations/${id}/slides/${slideIndex}/chat`, {
       method: 'POST',
       body: JSON.stringify({ instruction, history }),
     }),
-
-  generateSections: (id, onMessage) => {
-    return new Promise((resolve, reject) => {
-      fetch(`${BASE}/generations/${id}/generate-sections`, { method: 'POST' })
-        .then((res) => {
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-
-          function read() {
-            reader.read().then(({ done, value }) => {
-              if (done) return resolve();
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n\n');
-              buffer = lines.pop();
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try {
-                    onMessage(JSON.parse(line.slice(6)));
-                  } catch {}
-                }
-              }
-              read();
-            }).catch(reject);
-          }
-          read();
-        })
-        .catch(reject);
-    });
-  },
 
   editSection: (id, sectionIndex, instruction, history = []) =>
     request(`/generations/${id}/sections/${sectionIndex}/chat`, {
@@ -243,9 +206,11 @@ export const generations = {
       body: JSON.stringify({ mermaid_code: mermaidCode }),
     }),
 
-  diagramUrl: (id, key) => `${BASE}/generations/${id}/diagrams/${key}`,
-  diagramDownloadUrl: (id, key, name = 'diagram') =>
-    `${BASE}/generations/${id}/diagrams/${key}?download=1&name=${encodeURIComponent(name)}`,
+  // `template` picks the diagram's colours; it is part of the URL so switching template refreshes the image.
+  diagramUrl: (id, key, template = '') =>
+    `${BASE}/generations/${id}/diagrams/${key}?template=${encodeURIComponent(template)}`,
+  diagramDownloadUrl: (id, key, name = 'diagram', template = '') =>
+    `${BASE}/generations/${id}/diagrams/${key}?download=1&name=${encodeURIComponent(name)}&template=${encodeURIComponent(template)}`,
 
   releaseGpu: () => request('/generations/release-gpu', { method: 'POST' }),
 

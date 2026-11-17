@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import { Send, Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink } from 'lucide-react';
+import { useParams, Link } from 'react-router-dom';
+import { Send, Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink, Loader2, Pencil } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import ItemTools from '../components/plan/ItemTools';
+import { useLiveWrite } from '../components/plan/useLiveWrite';
+import { useTemplates, findTemplate, templateStyle } from '../components/plan/templates';
 
 function AutoTextarea({ value, onChange, className = '', ...props }) {
   const ref = useRef(null);
@@ -302,7 +304,7 @@ function SummarySection({ content, onField, onRecapPoint, onAddRecapPoint, onRem
   );
 }
 
-function DiagramSection({ content, genId, onField, onApplyCode }) {
+function DiagramSection({ content, genId, templateId, onField, onApplyCode }) {
   return (
     <div className="py-6">
       <AutoTextarea value={content.title}
@@ -315,7 +317,7 @@ function DiagramSection({ content, genId, onField, onApplyCode }) {
         placeholder="Introduction" />
       <figure className="m-0 flex flex-col items-center gap-2">
         {content.diagram_file
-          ? <img src={generations.diagramUrl(genId, content.diagram_file)} alt={content.caption || content.title}
+          ? <img src={generations.diagramUrl(genId, content.diagram_file, templateId)} alt={content.caption || content.title}
               className="max-w-full max-h-[520px] object-contain border border-[#E2E8F0] rounded-md" />
           : <p className="hint">Diagram not rendered yet.</p>}
         <figcaption className="w-full">
@@ -326,7 +328,7 @@ function DiagramSection({ content, genId, onField, onApplyCode }) {
         </figcaption>
       </figure>
       <div className="mt-3">
-        <DiagramCodePanel genId={genId} content={content} downloadName={content.title || 'figure'} onApply={onApplyCode} />
+        <DiagramCodePanel genId={genId} content={content} downloadName={content.title || 'figure'} onApply={onApplyCode} templateId={templateId} />
       </div>
       {content.notes && (
         <AutoTextarea value={content.notes}
@@ -354,6 +356,10 @@ export default function DocReview() {
   const undoStack = useRef({});
   const redoStack = useRef({});
   const sectionRefs = useRef([]);
+  // Sections that are not written yet are written now and appear one by one.
+  const live = useLiveWrite(id, gen, setGen, 'sections');
+  const templateData = useTemplates();
+  const template = findTemplate(templateData, gen?.brief?.template);
 
   useEffect(() => {
     function onBeforeUnload(e) {
@@ -561,6 +567,12 @@ export default function DocReview() {
     setChatLoading(false);
   }
 
+  // Switching template is instant: it only restyles the preview and the next download.
+  async function changeTemplate(templateId) {
+    setGen((g) => ({ ...g, brief: { ...g.brief, template: templateId } }));
+    try { await generations.updateBrief(id, { template: templateId }); } catch (err) { console.error('Template change failed:', err); }
+  }
+
   async function handleOpenWordCraft() {
     setOpeningWordCraft(true);
     try {
@@ -591,7 +603,15 @@ export default function DocReview() {
   function renderSectionAt(secIdx) {
     const sec = sections[secIdx];
     const c = sec?.content;
-    if (!c) return <p className="hint">No content generated for this section.</p>;
+    if (!c) {
+      return (
+        <div className="py-8 flex items-center gap-3 text-slate">
+          {live.phase === 'error'
+            ? <span className="text-red-700 text-[14px]">Writing stopped: {live.message}</span>
+            : <><Loader2 size={18} className="text-cobalt animate-spin" /><span className="text-[15px]">Writing “{sec.title}”…</span></>}
+        </div>
+      );
+    }
     const t = sec.section_type || 'body';
     const h = makeSectionHelpers(secIdx);
 
@@ -612,7 +632,7 @@ export default function DocReview() {
           onCell={h.onCell} onAddRow={h.onAddRow} onRemoveRow={h.onRemoveRow}
           onAddColumn={h.onAddColumn} onRemoveColumn={h.onRemoveColumn} onColumnHeader={h.onColumnHeader} />;
       case 'diagram':
-        return <DiagramSection content={c} genId={id} onField={h.onField}
+        return <DiagramSection content={c} genId={id} templateId={template?.id} onField={h.onField}
           onApplyCode={(code, key) => updateFieldsAt(secIdx, { mermaid_code: code, diagram_file: key })} />;
       case 'summary':
         return <SummarySection content={c} onField={h.onField}
@@ -633,6 +653,25 @@ export default function DocReview() {
           </h1>
           <span className="chip-muted text-[11px]">Draft</span>
           {saving && <span className="text-xs text-slate animate-pulse">Saving...</span>}
+          {live.phase === 'writing' && (
+            <span className="text-[12px] text-cobalt flex items-center gap-1">
+              <Loader2 size={12} className="animate-spin" />Writing {Math.min(live.current || 1, sections.length)} of {sections.length}
+            </span>
+          )}
+          {live.phase === 'error' && (
+            <button type="button" onClick={live.retry} className="text-[12px] text-red-700 bg-transparent border-0 cursor-pointer underline">
+              Writing stopped. Retry
+            </button>
+          )}
+          <Link to={`/create/doc/${id}/outline`} className="text-[12px] text-slate flex items-center gap-1 no-underline hover:text-navy">
+            <Pencil size={11} />Outline
+          </Link>
+          {templateData.templates.length > 0 && (
+            <select className="field py-0.5 px-1.5 text-[12px] w-auto" aria-label="Template" title="Template"
+              value={template?.id || ''} onChange={(e) => changeTemplate(e.target.value)}>
+              {templateData.templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
           <span className="text-[12px] text-slate hidden sm:inline">{sections.length} sections</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -698,7 +737,7 @@ export default function DocReview() {
         {/* Document preview — center, continuous scroll */}
         <div className="flex-1 min-w-0 flex flex-col bg-[#E8ECF0] overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 lg:p-6 min-h-0">
-            <article className="bg-white rounded-lg shadow-lg max-w-[780px] mx-auto px-12 lg:px-16 py-10">
+            <article className="bg-white rounded-lg shadow-lg max-w-[780px] mx-auto px-12 lg:px-16 py-10" style={templateStyle(template)}>
               {sections.map((s, i) => (
                 <div key={i}
                   ref={(el) => (sectionRefs.current[i] = el)}
@@ -727,7 +766,11 @@ export default function DocReview() {
               </button>
             </div>
             <ItemTools key={activeSection} type="doc" genId={id} index={activeSection} item={sections[activeSection]}
-              onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }} />
+              onUpdated={async (result) => {
+                const r = await generations.get(id);
+                setGen(r.generation);
+                if (result?.index !== undefined) setActiveSection(result.index);
+              }} />
             <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
               {chatHistory.length === 0 && <p className="hint text-[13px]">Tell me what to change in this section.</p>}
               {chatHistory.map((msg, i) => (

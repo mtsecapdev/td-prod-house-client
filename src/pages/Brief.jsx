@@ -1,53 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Upload, Download, Loader2, Trash2, Copy } from 'lucide-react';
+import { ArrowLeft, Upload, Download, Loader2, Trash2, Copy, Sparkles } from 'lucide-react';
 import { documents, generations } from '../services/api';
 import { KIND } from '../components/plan/kindConfig';
 
-const deckLengths = [
-  { value: 'quick', label: 'Quick', desc: '3-5 slides' },
-  { value: 'standard', label: 'Standard', desc: '6-10 slides' },
-  { value: 'deep', label: 'Deep dive', desc: '12-18 slides' },
-];
-
-const docLengths = [
-  { value: 'short', label: 'Short', desc: '2-4 pages' },
-  { value: 'standard', label: 'Standard', desc: '5-8 pages' },
-  { value: 'comprehensive', label: 'Comprehensive', desc: '10-15 pages' },
-];
-
-const audienceLevels = [
-  { value: 'new', label: 'New to it', desc: 'Define terms, no assumed knowledge' },
-  { value: 'familiar', label: 'Familiar', desc: 'Knows the basics' },
-  { value: 'expert', label: 'Expert', desc: 'Precise and dense' },
-];
-
-const tones = [
-  { value: 'formal', label: 'Formal', desc: 'Professional, authoritative' },
-  { value: 'instructional', label: 'Instructional', desc: 'Clear, step-by-step' },
-  { value: 'conversational', label: 'Conversational', desc: 'Approachable, casual' },
-];
-
+// Gamma-style start: what to make, from which documents, how many slides/sections, and the format.
+// Audience, tone and text amount come pre-filled on the outline screen.
 export default function Brief() {
   const navigate = useNavigate();
   const location = useLocation();
   const type = location.pathname.includes('/doc') ? 'doc' : 'deck';
-  const isDeck = type === 'deck';
-  const lengths = isDeck ? deckLengths : docLengths;
   const kind = KIND[type];
+  const isDeck = type === 'deck';
   const fileRef = useRef(null);
   const [topic, setTopic] = useState('');
-  const [audience, setAudience] = useState('');
-  const [purpose, setPurpose] = useState('');
-  const [format, setFormat] = useState(KIND[type].formats[0].value);
-  const [audienceLevel, setAudienceLevel] = useState('new');
-  const [include, setInclude] = useState('');
-  const [exclude, setExclude] = useState('');
-  const [tone, setTone] = useState('instructional');
-  const [length, setLength] = useState('standard');
+  const [count, setCount] = useState(kind.defaultCount);
+  const [format, setFormat] = useState(kind.formats[0].value);
   const [docs, setDocs] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState('');
   const [recentGens, setRecentGens] = useState([]);
@@ -60,35 +32,25 @@ export default function Brief() {
     loadDocs();
     generations.list().then((data) => {
       const list = data.generations || data || [];
-      setRecentGens(list.filter((g) => g.type === type && g.brief).slice(0, 3));
+      setRecentGens(list.filter((g) => g.type === type && g.brief?.topic).slice(0, 3));
     }).catch(() => {});
-  }, []);
+  }, [type]);
 
   const readyDocs = docs.filter((d) => d.status === 'ready');
   const allSelected = readyDocs.length > 0 && readyDocs.every((d) => selectedIds.includes(d.id));
 
   function toggleDoc(id) {
-    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   function toggleAll() {
-    if (allSelected) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(readyDocs.map((d) => d.id));
-    }
+    setSelectedIds(allSelected ? [] : readyDocs.map((d) => d.id));
   }
 
-  function useBrief(gen) {
+  function reuseBrief(gen) {
     setTopic(gen.brief.topic || '');
-    setAudience(gen.brief.audience || '');
-    setTone(gen.brief.tone || 'instructional');
-    setLength(gen.brief.length || 'standard');
-    setPurpose(gen.brief.purpose || '');
+    if (gen.brief.count) setCount(gen.brief.count);
     if (gen.brief.format) setFormat(gen.brief.format);
-    if (gen.brief.audience_level) setAudienceLevel(gen.brief.audience_level);
-    setInclude(gen.brief.include || '');
-    setExclude(gen.brief.exclude || '');
     if (gen.source_document_ids) setSelectedIds(gen.source_document_ids);
   }
 
@@ -139,59 +101,89 @@ export default function Brief() {
     e.preventDefault();
     if (!topic.trim() || selectedIds.length === 0) return;
     setSubmitting(true);
+    setError(null);
     try {
       const { generation } = await generations.create({
         type,
-        brief: {
-          topic, purpose, audience, audience_level: audienceLevel, format, tone, length, include, exclude,
-        },
+        brief: { topic, count, format, text_amount: 'concise' },
         sourceDocumentIds: selectedIds,
       });
-      navigate(`/create/${type}/${generation.id}/clarify`);
+      navigate(`/create/${type}/${generation.id}/outline`);
     } catch (err) {
-      console.error(err);
+      setError(err.message);
       setSubmitting(false);
     }
   }
 
+  const counts = [];
+  for (let n = kind.countRange[0]; n <= kind.countRange[1]; n++) counts.push(n);
+
   return (
-    <main className="max-w-[960px] w-[90%] mx-auto py-8 flex flex-col gap-6">
+    <main className="max-w-[880px] w-[90%] mx-auto py-8 flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <Link to="/" className="btn-ghost"><ArrowLeft size={18} />Back</Link>
-        <span className="hint"><strong className="text-ink">Step 1 of 6</strong> &middot; Brief, questions, storyline, outline, write, review</span>
       </div>
 
-      <h1 className="font-heading text-[32px] leading-10 font-bold tracking-tight m-0">
-        {isDeck ? 'New slide deck' : 'New training document'}
-      </h1>
+      <div>
+        <h1 className="font-heading text-[32px] leading-10 font-bold tracking-tight m-0">
+          {isDeck ? 'New slide deck' : 'New training document'}
+        </h1>
+        <p className="text-[15px] text-slate mt-1.5 mb-0">
+          Describe what you need. You will get an outline to edit before anything is written.
+        </p>
+      </div>
 
-      {recentGens.length > 0 && (
+      <form onSubmit={handleSubmit} className="card p-7 flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <span className="text-[13px] font-semibold text-slate">Recent briefs</span>
-          <div className="flex gap-2 flex-wrap">
-            {recentGens.map((g) => (
-              <button key={g.id} type="button" onClick={() => useBrief(g)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-white text-[13px] text-ink hover:bg-canvas hover:border-[#CBD5E1] cursor-pointer transition-colors">
-                <Copy size={12} className="text-slate" />
-                <span className="truncate max-w-[200px]">{g.brief.topic}</span>
-              </button>
-            ))}
-          </div>
+          <label htmlFor="topic" className="label">What should it cover?</label>
+          <textarea id="topic" className="field min-h-[110px] text-[16px] leading-relaxed" maxLength={2000} value={topic}
+            onChange={(e) => setTopic(e.target.value)} autoFocus
+            placeholder={isDeck
+              ? 'e.g. Onboarding deck for new buyers: how to read the supplier scorecard and which suppliers need attention'
+              : 'e.g. A procedure guide for incoming inspection, including what to do when a part fails'} />
+          {recentGens.length > 0 && (
+            <div className="flex gap-2 flex-wrap items-center">
+              <span className="text-[12px] text-slate">Reuse:</span>
+              {recentGens.map((g) => (
+                <button key={g.id} type="button" onClick={() => reuseBrief(g)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-white text-[12px] text-ink hover:bg-canvas cursor-pointer">
+                  <Copy size={11} className="text-slate" />
+                  <span className="truncate max-w-[220px]">{g.brief.topic}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
 
-      <form onSubmit={handleSubmit} className="card p-7 flex flex-col gap-7">
-        {/* Sources — first, so user picks what to work with */}
+        <div className="flex flex-wrap gap-6 items-end">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="count" className="label">{isDeck ? 'Slides' : 'Sections'}</label>
+            <select id="count" className="field w-[110px]" value={count} onChange={(e) => setCount(Number(e.target.value))}>
+              {counts.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <fieldset className="border-0 m-0 p-0 flex flex-col gap-2">
+            <legend className="label mb-2">{isDeck ? 'Used as' : 'Kind of document'}</legend>
+            <div className="flex flex-wrap gap-2">
+              {kind.formats.map((f) => (
+                <button key={f.value} type="button" onClick={() => setFormat(f.value)} title={f.desc}
+                  className={`px-3.5 py-2 rounded-lg border text-[14px] cursor-pointer transition-colors ${
+                    format === f.value ? 'border-navy bg-[#EAF0F8] text-navy font-semibold' : 'border-border bg-white text-ink hover:bg-canvas'}`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        </div>
+
         <fieldset className="border-0 m-0 p-0 flex flex-col gap-3">
           <legend className="label mb-1">Source documents</legend>
-          <span className="hint -mt-1">{isDeck ? 'Slides are' : 'Content is'} grounded in the documents you select.</span>
+          <span className="hint -mt-1">{isDeck ? 'Slides are' : 'Content is'} written from the documents you select.</span>
 
           <div className="flex items-center gap-3">
             <input ref={fileRef} type="file" id="doc-upload" className="hidden"
               accept=".pdf,.docx,.pptx,.md,.txt" onChange={handleUpload} />
-            <button type="button" disabled={uploading}
-              onClick={() => fileRef.current?.click()}
-              className="btn-outline text-[14px] gap-1.5">
+            <button type="button" disabled={uploading} onClick={() => fileRef.current?.click()} className="btn-outline text-[14px] gap-1.5">
               {uploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
               {uploading ? 'Processing...' : 'Upload document'}
             </button>
@@ -204,31 +196,23 @@ export default function Brief() {
             <div className="border border-border rounded-lg overflow-hidden">
               {readyDocs.length > 1 && (
                 <label className="flex items-center gap-3 px-5 py-2.5 border-b border-border cursor-pointer hover:bg-canvas bg-[#FAFBFC]">
-                  <input type="checkbox" checked={allSelected}
-                    onChange={toggleAll}
-                    className="w-[18px] h-[18px] accent-navy" />
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-[18px] h-[18px] accent-navy" />
                   <span className="text-[13px] font-semibold text-slate">Select all ({readyDocs.length})</span>
                 </label>
               )}
               {docs.map((d) => (
                 <label key={d.id} className="flex items-center gap-3 px-5 py-3 border-b border-border last:border-0 cursor-pointer hover:bg-canvas">
-                  <input type="checkbox" checked={selectedIds.includes(d.id)}
-                    onChange={() => toggleDoc(d.id)}
-                    disabled={d.status !== 'ready'}
-                    className="w-[18px] h-[18px] accent-navy" />
+                  <input type="checkbox" checked={selectedIds.includes(d.id)} onChange={() => toggleDoc(d.id)}
+                    disabled={d.status !== 'ready'} className="w-[18px] h-[18px] accent-navy" />
                   <span className="text-[15px] flex-1">{d.name}</span>
-                  {d.status && d.status !== 'ready' && (
-                    <span className="chip-muted">{d.status}</span>
-                  )}
+                  {d.status && d.status !== 'ready' && <span className="chip-muted">{d.status}</span>}
                   {d.file_path && d.status === 'ready' && (
-                    <a href={documents.downloadUrl(d.id)} download
-                      onClick={(e) => e.stopPropagation()}
+                    <a href={documents.downloadUrl(d.id)} download onClick={(e) => e.stopPropagation()}
                       className="text-cobalt hover:text-navy p-1" title="Download original">
                       <Download size={16} />
                     </a>
                   )}
-                  <button type="button"
-                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(d.id); }}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(d.id); }}
                     className="text-slate hover:text-red-600 p-1" title="Delete document">
                     <Trash2 size={16} />
                   </button>
@@ -238,129 +222,11 @@ export default function Brief() {
           )}
         </fieldset>
 
-        {/* Topic — single line input */}
-        <div className="flex flex-col gap-2">
-          <label htmlFor="topic" className="label">Lesson topic</label>
-          <input id="topic" className="field" maxLength={200} value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. Safety procedures for engine room operations" />
-        </div>
-
-        {/* Purpose — the most useful single input for planning */}
-        <div className="flex flex-col gap-2">
-          <label htmlFor="purpose" className="label">
-            Purpose <span className="font-normal text-slate text-[13px]">(recommended)</span>
-          </label>
-          <span className="hint -mt-1">After this, the {kind.audienceWord} can…</span>
-          <input id="purpose" className="field" maxLength={300} value={purpose}
-            onChange={(e) => setPurpose(e.target.value)}
-            placeholder={isDeck
-              ? 'e.g. read a supplier scorecard and know which suppliers need attention'
-              : 'e.g. carry out an incoming inspection and escalate a failed part'} />
-        </div>
-
-        {/* Audience — optional */}
-        <div className="flex flex-col gap-2">
-          <label htmlFor="audience" className="label">
-            Audience <span className="font-normal text-slate text-[13px]">(optional)</span>
-          </label>
-          <input id="audience" className="field" value={audience}
-            onChange={(e) => setAudience(e.target.value)}
-            placeholder="Leave blank for general audience" />
-        </div>
-
-        {/* Audience level */}
-        <fieldset className="border-0 m-0 p-0">
-          <legend className="label mb-3">How much does the {kind.audienceWord} already know?</legend>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-            {audienceLevels.map((a) => (
-              <label key={a.value} className={`option ${audienceLevel === a.value ? 'option-selected' : ''}`}>
-                <input type="radio" name="audience_level" value={a.value} checked={audienceLevel === a.value}
-                  onChange={() => setAudienceLevel(a.value)} className="mt-0.5 w-[18px] h-[18px] accent-navy" />
-                <span>
-                  <span className="block font-semibold text-[15px]">{a.label}</span>
-                  <span className="hint">{a.desc}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {/* Format */}
-        <fieldset className="border-0 m-0 p-0">
-          <legend className="label mb-3">{isDeck ? 'How will it be used?' : 'What kind of document?'}</legend>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-            {kind.formats.map((f) => (
-              <label key={f.value} className={`option ${format === f.value ? 'option-selected' : ''}`}>
-                <input type="radio" name="format" value={f.value} checked={format === f.value}
-                  onChange={() => setFormat(f.value)} className="mt-0.5 w-[18px] h-[18px] accent-navy" />
-                <span>
-                  <span className="block font-semibold text-[15px]">{f.label}</span>
-                  <span className="hint">{f.desc}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {/* Tone */}
-        <fieldset className="border-0 m-0 p-0">
-          <legend className="label mb-3">Tone</legend>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-            {tones.map((t) => (
-              <label key={t.value} className={`option ${tone === t.value ? 'option-selected' : ''}`}>
-                <input type="radio" name="tone" value={t.value} checked={tone === t.value}
-                  onChange={() => setTone(t.value)} className="mt-0.5 w-[18px] h-[18px] accent-navy" />
-                <span>
-                  <span className="block font-semibold text-[15px]">{t.label}</span>
-                  <span className="hint">{t.desc}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {/* Length */}
-        <fieldset className="border-0 m-0 p-0">
-          <legend className="label mb-3">{isDeck ? 'Deck length' : 'Document length'}</legend>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-            {lengths.map((l) => (
-              <label key={l.value} className={`option ${length === l.value ? 'option-selected' : ''}`}>
-                <input type="radio" name="length" value={l.value} checked={length === l.value}
-                  onChange={() => setLength(l.value)} className="mt-0.5 w-[18px] h-[18px] accent-navy" />
-                <span>
-                  <span className="block font-semibold text-[15px]">{l.label}</span>
-                  <span className="hint">{l.desc}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {/* Include / leave out — optional */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="include" className="label">
-              Must include <span className="font-normal text-slate text-[13px]">(optional)</span>
-            </label>
-            <textarea id="include" className="field min-h-[72px]" value={include}
-              onChange={(e) => setInclude(e.target.value)}
-              placeholder="Topics, examples or figures that have to be in it" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="exclude" className="label">
-              Leave out <span className="font-normal text-slate text-[13px]">(optional)</span>
-            </label>
-            <textarea id="exclude" className="field min-h-[72px]" value={exclude}
-              onChange={(e) => setExclude(e.target.value)}
-              placeholder="Anything that should not appear" />
-          </div>
-        </div>
+        {error && <p className="text-red-700 text-[14px] m-0">{error}</p>}
 
         <div className="flex justify-end">
-          <button type="submit" disabled={submitting || !topic.trim() || selectedIds.length === 0}
-            className="btn-primary">
-            {submitting ? 'Starting...' : 'Continue'}
+          <button type="submit" disabled={submitting || !topic.trim() || selectedIds.length === 0} className="btn-primary">
+            <Sparkles size={16} />{submitting ? 'Starting...' : 'Generate outline'}
           </button>
         </div>
       </form>
