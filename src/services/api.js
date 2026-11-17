@@ -92,6 +92,14 @@ export const generations = {
   // ── Planning (decks and documents) ──
   updateBrief: (id, brief) => request(`/generations/${id}/brief`, { method: 'PUT', body: JSON.stringify({ brief }) }),
   templates: () => request('/generations/templates'),
+  // A company .pptx: its theme colours and fonts become a template; decks build on its slide masters.
+  uploadTemplate: (file, name) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (name) form.append('name', name);
+    return request('/generations/templates', { method: 'POST', body: form, headers: {} });
+  },
+  deleteTemplate: (templateId) => request(`/generations/templates/${templateId}`, { method: 'DELETE' }),
 
   // Re-plans the outline (optionally saving brief changes first). Runs as a job; poll the generation.
   createOutline: (id, brief) =>

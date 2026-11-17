@@ -2,13 +2,28 @@ import { useEffect, useState } from 'react';
 import { generations } from '../../services/api';
 
 let cache = null;
+const listeners = new Set();
 
-/** The visual templates (server: templates/themes.json), loaded once per page load. */
+function load() {
+  return generations.templates().then((d) => {
+    cache = d;
+    listeners.forEach((fn) => fn(d));
+    return d;
+  });
+}
+
+/** Re-reads the template list (after an upload or delete) for every component using it. */
+export function reloadTemplates() {
+  return load();
+}
+
+/** The visual templates (built-in + uploaded company templates), loaded once and shared. */
 export function useTemplates() {
   const [data, setData] = useState(cache);
   useEffect(() => {
-    if (cache) return;
-    generations.templates().then((d) => { cache = d; setData(d); }).catch(() => {});
+    listeners.add(setData);
+    if (!cache) load().catch(() => {});
+    return () => listeners.delete(setData);
   }, []);
   return data || { default: 'harbour', templates: [] };
 }
