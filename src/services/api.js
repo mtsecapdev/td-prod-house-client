@@ -107,6 +107,12 @@ export const generations = {
   // Remix: the best other layouts for an item, with reasons ({ type, reason }[]). visual: only visual layouts.
   suggestLayouts: (type, id, index, visual = false) =>
     request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}/${index}/layouts${visual ? '?visual=1' : ''}`),
+  // Deck-wide agent: plan (nothing changes), apply the kept steps (background job), undo the last change.
+  agentPlan: (id, instruction) =>
+    request(`/generations/${id}/agent/plan`, { method: 'POST', body: JSON.stringify({ instruction }) }),
+  agentApply: (id, steps) =>
+    request(`/generations/${id}/agent/apply`, { method: 'POST', body: JSON.stringify({ steps }) }),
+  agentUndo: (id) => request(`/generations/${id}/agent/undo`, { method: 'POST' }),
   // "Add with AI": plans and writes a new slide/section after index `after`.
   addItem: (type, id, after, description) =>
     request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}`, {

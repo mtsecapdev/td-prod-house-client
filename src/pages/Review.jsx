@@ -4,6 +4,7 @@ import { Send, ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Down
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import ItemTools from '../components/plan/ItemTools';
+import AgentPanel from '../components/plan/AgentPanel';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
 import { useTemplates, findTemplate, templateStyle } from '../components/plan/templates';
 
@@ -853,6 +854,7 @@ export default function Review() {
   const [gen, setGen] = useState(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [chatOpen, setChatOpen] = useState(true);
+  const [panelTab, setPanelTab] = useState('item'); // 'item' | 'deck' (agent)
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -1366,34 +1368,48 @@ export default function Review() {
         {chatOpen && (
           <div className="w-[280px] shrink-0 border-l border-border bg-white flex flex-col overflow-hidden">
             <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-navy">Edit with chat</span>
+              <div className="flex gap-1 p-0.5 bg-canvas rounded-md">
+                {[['item', 'This slide'], ['deck', 'Whole deck']].map(([value, label]) => (
+                  <button key={value} type="button" onClick={() => setPanelTab(value)}
+                    className={`px-2 py-1 rounded text-[12px] border-0 cursor-pointer ${
+                      panelTab === value ? 'bg-white text-navy font-semibold shadow-sm' : 'bg-transparent text-slate'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
               <button type="button" onClick={() => setChatOpen(false)}
                 className="p-1 rounded text-slate hover:text-navy hover:bg-canvas cursor-pointer bg-transparent border-0">
                 <X size={14} />
               </button>
             </div>
-            <ItemTools key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
-              onUpdated={async (result) => {
-                const r = await generations.get(id);
-                setGen(r.generation);
-                if (result?.index !== undefined) setActiveSlide(result.index);
-              }} />
-            <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
-              {chatHistory.length === 0 && <p className="hint text-[13px]">Tell me what to change on this slide.</p>}
-              {chatHistory.map((msg, i) => (
-                <div key={i} className={`text-[13px] px-3 py-2 rounded-lg ${
-                  msg.role === 'user' ? 'bg-navy text-white self-end max-w-[85%]' : 'bg-[#F1F5F9] self-start max-w-[85%]'
-                }`}>{msg.content}</div>
-              ))}
-              {chatLoading && <p className="hint text-[13px] animate-pulse">Thinking...</p>}
-            </div>
-            <form onSubmit={handleEditSubmit} className="shrink-0 flex gap-2 px-3 py-2.5 border-t border-border">
-              <input className="field flex-1 text-[13px]" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                placeholder="e.g. Make the title shorter" disabled={chatLoading} />
-              <button type="submit" disabled={chatLoading || !chatInput.trim()} className="btn-primary px-2.5 py-1.5">
-                <Send size={14} />
-              </button>
-            </form>
+            {panelTab === 'deck' ? (
+              <AgentPanel type="deck" genId={id} gen={gen} setGen={setGen} />
+            ) : (
+              <>
+              <ItemTools key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
+                onUpdated={async (result) => {
+                  const r = await generations.get(id);
+                  setGen(r.generation);
+                  if (result?.index !== undefined) setActiveSlide(result.index);
+                }} />
+              <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
+                {chatHistory.length === 0 && <p className="hint text-[13px]">Tell me what to change on this slide.</p>}
+                {chatHistory.map((msg, i) => (
+                  <div key={i} className={`text-[13px] px-3 py-2 rounded-lg ${
+                    msg.role === 'user' ? 'bg-navy text-white self-end max-w-[85%]' : 'bg-[#F1F5F9] self-start max-w-[85%]'
+                  }`}>{msg.content}</div>
+                ))}
+                {chatLoading && <p className="hint text-[13px] animate-pulse">Thinking...</p>}
+              </div>
+              <form onSubmit={handleEditSubmit} className="shrink-0 flex gap-2 px-3 py-2.5 border-t border-border">
+                <input className="field flex-1 text-[13px]" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="e.g. Make the title shorter" disabled={chatLoading} />
+                <button type="submit" disabled={chatLoading || !chatInput.trim()} className="btn-primary px-2.5 py-1.5">
+                  <Send size={14} />
+                </button>
+              </form>
+              </>
+            )}
           </div>
         )}
       </div>
