@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, RotateCcw, Loader2, ChevronDown, ChevronRight, Sparkles, Layout, Plus } from 'lucide-react';
+import { FileText, RotateCcw, Loader2, ChevronDown, ChevronRight, Sparkles, Layout, Plus, Image, Languages, Mic } from 'lucide-react';
 import { generations } from '../../services/api';
 import { KIND } from './kindConfig';
 
@@ -19,8 +19,11 @@ export default function ItemTools({ type, genId, index, item, onUpdated }) {
   const kind = KIND[type];
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
-  const [panel, setPanel] = useState(null); // 'layout' | 'note' | 'add' | 'sources'
+  const [panel, setPanel] = useState(null); // 'layout' | 'note' | 'add' | 'tone' | 'translate' | 'sources'
   const [note, setNote] = useState('');
+  const [tone, setTone] = useState('');
+  const [language, setLanguage] = useState('');
+  const [suggestions, setSuggestions] = useState(null);
   const [description, setDescription] = useState('');
   const sources = item?.sources || [];
 
@@ -40,6 +43,27 @@ export default function ItemTools({ type, genId, index, item, onUpdated }) {
   const editItem = type === 'deck' ? generations.editSlide : generations.editSection;
   const toggle = (p) => setPanel(panel === p ? null : p);
 
+  // Remix: show the model's top layouts for this content (with reasons) above the full list.
+  async function openLayouts() {
+    toggle('layout');
+    if (panel === 'layout' || suggestions) return;
+    try {
+      const { suggestions: s } = await generations.suggestLayouts(type, genId, index);
+      setSuggestions(s);
+    } catch {
+      setSuggestions([]);
+    }
+  }
+
+  // "Make visual": rewrite in the best visual layout the model suggests for this content.
+  function makeVisual() {
+    return run('visual', async () => {
+      const { suggestions: s } = await generations.suggestLayouts(type, genId, index, true);
+      if (!s.length) throw new Error('No visual layout suits this content.');
+      return generations.regenerateItem(type, genId, index, { type: s[0].type });
+    });
+  }
+
   if (!item?.content) return null;
   return (
     <div className="px-3 py-2.5 border-b border-border flex flex-col gap-2">
@@ -56,7 +80,19 @@ export default function ItemTools({ type, genId, index, item, onUpdated }) {
         ))}
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <button type="button" onClick={() => toggle('layout')} disabled={busy !== null} className="btn-ghost text-[12px] py-1 px-1.5">
+        <button type="button" onClick={makeVisual} disabled={busy !== null} className="btn-outline text-[12px] py-1 px-2"
+          title="Turn the text into a diagram, key stats, timeline or another visual layout">
+          {busy === 'visual' ? <Loader2 size={12} className="animate-spin" /> : <Image size={12} />}Make visual
+        </button>
+        <button type="button" onClick={() => toggle('tone')} disabled={busy !== null} className="btn-ghost text-[12px] py-1 px-1.5">
+          <Mic size={12} />Tone
+        </button>
+        <button type="button" onClick={() => toggle('translate')} disabled={busy !== null} className="btn-ghost text-[12px] py-1 px-1.5">
+          <Languages size={12} />Translate
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" onClick={openLayouts} disabled={busy !== null} className="btn-ghost text-[12px] py-1 px-1.5">
           <Layout size={12} />Layout
         </button>
         <button type="button" onClick={() => toggle('note')} disabled={busy !== null} className="btn-ghost text-[12px] py-1 px-1.5">
@@ -67,6 +103,45 @@ export default function ItemTools({ type, genId, index, item, onUpdated }) {
         </button>
       </div>
 
+      {panel === 'tone' && (
+        <form className="flex gap-1.5" onSubmit={(e) => {
+          e.preventDefault();
+          if (tone.trim()) run('tone', () => editItem(genId, index, `Rewrite it in a ${tone.trim()} tone. Keep the facts and the layout.`, []));
+        }}>
+          <input className="field flex-1 text-[12px] py-1" value={tone} onChange={(e) => setTone(e.target.value)}
+            placeholder="e.g. friendly, formal, urgent" disabled={busy !== null} />
+          <button type="submit" disabled={busy !== null || !tone.trim()} className="btn-outline text-[12px] py-1 px-2">
+            {busy === 'tone' && <Loader2 size={12} className="animate-spin" />}Apply
+          </button>
+        </form>
+      )}
+      {panel === 'translate' && (
+        <form className="flex gap-1.5" onSubmit={(e) => {
+          e.preventDefault();
+          if (language.trim()) run('translate', () => editItem(genId, index, `Translate all text, including speaker notes, into ${language.trim()}. Keep names, figures and the layout.`, []));
+        }}>
+          <input className="field flex-1 text-[12px] py-1" value={language} onChange={(e) => setLanguage(e.target.value)}
+            placeholder="e.g. Malay, German" disabled={busy !== null} />
+          <button type="submit" disabled={busy !== null || !language.trim()} className="btn-outline text-[12px] py-1 px-2">
+            {busy === 'translate' && <Loader2 size={12} className="animate-spin" />}Translate
+          </button>
+        </form>
+      )}
+      {panel === 'layout' && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] font-semibold text-slate uppercase tracking-wide">Suggested</span>
+          {suggestions === null && <span className="hint text-[12px] flex items-center gap-1"><Loader2 size={12} className="animate-spin" />Finding the best layouts…</span>}
+          {suggestions?.map((sg) => (
+            <button key={sg.type} type="button" disabled={busy !== null}
+              onClick={() => run('layout', () => generations.regenerateItem(type, genId, index, { type: sg.type }))}
+              className="text-left px-2 py-1.5 rounded-md border border-cobalt/40 bg-[#F5F8FC] hover:bg-[#EAF0F8] cursor-pointer disabled:opacity-50">
+              <span className="block text-[12px] font-semibold text-navy">{kind.options.find((o) => o.key === sg.type)?.label || sg.type}</span>
+              <span className="block text-[11px] text-slate leading-snug">{sg.reason}</span>
+            </button>
+          ))}
+          <span className="text-[11px] font-semibold text-slate uppercase tracking-wide mt-1">All layouts</span>
+        </div>
+      )}
       {panel === 'layout' && (
         <div className="grid grid-cols-2 gap-1.5">
           {kind.options.filter((o) => o.key !== item[kind.typeKey]).map((o) => (

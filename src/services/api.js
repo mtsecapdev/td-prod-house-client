@@ -104,6 +104,9 @@ export const generations = {
     request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}/${index}/regenerate`, {
       method: 'POST', body: JSON.stringify({ note, type: itemType }),
     }),
+  // Remix: the best other layouts for an item, with reasons ({ type, reason }[]). visual: only visual layouts.
+  suggestLayouts: (type, id, index, visual = false) =>
+    request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}/${index}/layouts${visual ? '?visual=1' : ''}`),
   // "Add with AI": plans and writes a new slide/section after index `after`.
   addItem: (type, id, after, description) =>
     request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}`, {
