@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Send, Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink } from 'lucide-react';
 import { generations, assets } from '../services/api';
+import DiagramCodePanel from '../components/DiagramCodePanel';
 
 function AutoTextarea({ value, onChange, className = '', ...props }) {
   const ref = useRef(null);
@@ -20,7 +21,7 @@ const inputBase = 'w-full bg-transparent border-0 outline-none px-0 py-0.5 round
 
 const TYPE_LABELS = {
   heading: 'Heading', body: 'Body', procedure: 'Procedure',
-  key_points: 'Key Points', reference_table: 'Table', summary: 'Summary',
+  key_points: 'Key Points', reference_table: 'Table', diagram: 'Diagram', summary: 'Summary',
 };
 
 function HeadingSection({ content, onField }) {
@@ -300,6 +301,42 @@ function SummarySection({ content, onField, onRecapPoint, onAddRecapPoint, onRem
   );
 }
 
+function DiagramSection({ content, genId, onField, onApplyCode }) {
+  return (
+    <div className="py-6">
+      <AutoTextarea value={content.title}
+        onChange={(val) => onField('title', val)}
+        className={`${inputBase} font-heading text-[22px] font-bold text-navy mb-2`}
+        placeholder="Section title" />
+      <AutoTextarea value={content.introduction || ''}
+        onChange={(val) => onField('introduction', val)}
+        className={`${inputBase} text-[15px] text-slate mb-4 leading-relaxed`}
+        placeholder="Introduction" />
+      <figure className="m-0 flex flex-col items-center gap-2">
+        {content.diagram_file
+          ? <img src={generations.diagramUrl(genId, content.diagram_file)} alt={content.caption || content.title}
+              className="max-w-full max-h-[520px] object-contain border border-[#E2E8F0] rounded-md" />
+          : <p className="hint">Diagram not rendered yet.</p>}
+        <figcaption className="w-full">
+          <AutoTextarea value={content.caption || ''}
+            onChange={(val) => onField('caption', val)}
+            className={`${inputBase} text-[13px] italic text-slate text-center`}
+            placeholder="Figure caption" />
+        </figcaption>
+      </figure>
+      <div className="mt-3">
+        <DiagramCodePanel genId={genId} content={content} downloadName={content.title || 'figure'} onApply={onApplyCode} />
+      </div>
+      {content.notes && (
+        <AutoTextarea value={content.notes}
+          onChange={(val) => onField('notes', val)}
+          className={`${inputBase} text-[13px] text-slate mt-4 leading-relaxed`}
+          placeholder="Notes" />
+      )}
+    </div>
+  );
+}
+
 export default function DocReview() {
   const { id } = useParams();
   const [gen, setGen] = useState(null);
@@ -406,8 +443,13 @@ export default function DocReview() {
   }
 
   function updateFieldAt(secIdx, field, value) {
+    updateFieldsAt(secIdx, { [field]: value });
+  }
+
+  // Several fields as one edit (one undo step), e.g. diagram code and its rendered image.
+  function updateFieldsAt(secIdx, fields) {
     const sec = sections[secIdx];
-    const updatedContent = { ...sec.content, [field]: value };
+    const updatedContent = { ...sec.content, ...fields };
     const updatedSections = sections.map((s, i) =>
       i === secIdx ? { ...s, content: updatedContent } : s,
     );
@@ -568,6 +610,9 @@ export default function DocReview() {
         return <ReferenceTableSection content={c} onField={h.onField}
           onCell={h.onCell} onAddRow={h.onAddRow} onRemoveRow={h.onRemoveRow}
           onAddColumn={h.onAddColumn} onRemoveColumn={h.onRemoveColumn} onColumnHeader={h.onColumnHeader} />;
+      case 'diagram':
+        return <DiagramSection content={c} genId={id} onField={h.onField}
+          onApplyCode={(code, key) => updateFieldsAt(secIdx, { mermaid_code: code, diagram_file: key })} />;
       case 'summary':
         return <SummarySection content={c} onField={h.onField}
           onRecapPoint={h.onRecapPoint} onAddRecapPoint={h.onAddRecapPoint} onRemoveRecapPoint={h.onRemoveRecapPoint} />;

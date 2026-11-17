@@ -13,9 +13,6 @@ import ImageBrief from './pages/ImageBrief';
 import ImagePrompt from './pages/ImagePrompt';
 import ImageProgress from './pages/ImageProgress';
 import ImageReview from './pages/ImageReview';
-import InfographicBrief from './pages/InfographicBrief';
-import InfographicProgress from './pages/InfographicProgress';
-import InfographicReview from './pages/InfographicReview';
 import Chat from './pages/Chat';
 import Library from './pages/Library';
 
@@ -40,9 +37,6 @@ export default function App() {
             <Route path="create/image/:id/prompt" element={<ImagePrompt />} />
             <Route path="create/image/:id/progress" element={<ImageProgress />} />
             <Route path="create/image/:id/review" element={<ImageReview />} />
-            <Route path="create/infographic" element={<InfographicBrief />} />
-            <Route path="create/infographic/:id/progress" element={<InfographicProgress />} />
-            <Route path="create/infographic/:id/review" element={<InfographicReview />} />
           </Route>
         </Routes>
       </UploadProvider>

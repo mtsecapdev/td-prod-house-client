@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { FileSliders, FileText, Image, LayoutGrid, ArrowRight, Trash2, Upload, Download, ChevronDown, ChevronUp, FolderOpen, Check, X } from 'lucide-react';
+import { FileSliders, FileText, Image, ArrowRight, Trash2, Upload, Download, ChevronDown, ChevronUp, FolderOpen, Check, X } from 'lucide-react';
 import { generations, documents } from '../services/api';
 import { useUpload } from '../contexts/UploadContext';
 
 const types = [
-  { type: 'deck', label: 'Slide deck', desc: 'Training presentations from your source material', icon: FileSliders, to: '/create/deck' },
-  { type: 'doc', label: 'Training document', desc: 'Structured documents for print or digital', icon: FileText, to: '/create/doc' },
+  { type: 'deck', label: 'Slide deck', desc: 'Training presentations with diagrams, key stats and timelines', icon: FileSliders, to: '/create/deck' },
+  { type: 'doc', label: 'Training document', desc: 'Structured documents with figures, for print or digital', icon: FileText, to: '/create/doc' },
   { type: 'image', label: 'Image', desc: 'Photorealistic, illustration and conceptual images', icon: Image, to: '/create/image' },
-  { type: 'infographic', label: 'Diagram & Infographic', desc: 'Process flows, comparisons, timelines and key stats', icon: LayoutGrid, to: '/create/infographic' },
 ];
 
 const statusLabels = {
@@ -26,12 +25,6 @@ function getResumeUrl(g) {
     if (g.status === 'done') return `${base}/review`;
     if (g.status === 'prompt_ready') return `${base}/prompt`;
     if (g.status === 'pending') return `${base}/prompt`;
-    if (g.status === 'generating') return `${base}/progress`;
-    return null;
-  }
-  if (g.type === 'infographic') {
-    if (g.status === 'done') return `${base}/review`;
-    if (g.status === 'pending') return `${base}/progress`;
     if (g.status === 'generating') return `${base}/progress`;
     return null;
   }
@@ -154,14 +147,14 @@ export default function Home() {
             {recentWork.map((g) => {
               const url = getResumeUrl(g);
               if (!url) return null;
-              const Icon = g.type === 'deck' ? FileSliders : g.type === 'image' ? Image : g.type === 'infographic' ? LayoutGrid : FileText;
+              const Icon = g.type === 'deck' ? FileSliders : g.type === 'image' ? Image : FileText;
               return (
                 <Link key={g.id} to={url} className="card px-5 py-4 flex items-center gap-4 no-underline text-ink hover:shadow-raised hover:border-[#CBD5E1] transition-all">
                   <Icon size={18} className="text-navy shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[15px] font-medium truncate">{g.brief?.topic || 'Untitled'}</p>
                     <p className="text-[13px] text-slate mt-0.5">
-                      {g.type === 'deck' ? 'Slide deck' : g.type === 'image' ? 'Image' : g.type === 'infographic' ? 'Infographic' : 'Training document'}
+                      {g.type === 'deck' ? 'Slide deck' : g.type === 'image' ? 'Image' : 'Training document'}
                       {' · '}
                       {new Date(g.updated_at || g.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
@@ -207,12 +200,12 @@ export default function Home() {
         </h1>
         <p className="text-[15px] text-slate mt-2">Choose a format to get started with your source material.</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-2 gap-5 max-w-[720px] mx-auto w-full">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-[960px] mx-auto w-full">
         {types.map((t) => {
           const Icon = t.icon;
           if (t.disabled) {
             return (
-              <div key={t.type} className="card p-7 flex gap-5 items-start opacity-45 cursor-not-allowed">
+              <div key={t.type} className="card p-6 flex md:flex-col gap-4 items-start opacity-45 cursor-not-allowed">
                 <div className="w-11 h-11 rounded-lg bg-canvas flex items-center justify-center shrink-0">
                   <Icon size={22} className="text-slate" />
                 </div>
@@ -225,7 +218,7 @@ export default function Home() {
             );
           }
           return (
-            <Link key={t.type} to={t.to} className="card p-7 flex gap-5 items-start no-underline text-ink hover:shadow-raised hover:border-[#CBD5E1] transition-all">
+            <Link key={t.type} to={t.to} className="card p-6 flex md:flex-col gap-4 items-start no-underline text-ink hover:shadow-raised hover:border-[#CBD5E1] transition-all">
               <div className="w-11 h-11 rounded-lg bg-navy/5 flex items-center justify-center shrink-0">
                 <Icon size={22} className="text-navy" />
               </div>

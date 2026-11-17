@@ -5,7 +5,7 @@ import { generations } from '../services/api';
 
 const TYPE_LABELS = {
   heading: 'Heading', body: 'Body', procedure: 'Procedure',
-  key_points: 'Key Points', reference_table: 'Table', summary: 'Summary',
+  key_points: 'Key Points', reference_table: 'Table', diagram: 'Diagram', summary: 'Summary',
 };
 
 export default function DocProgress() {

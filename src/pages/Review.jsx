@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Send, ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare } from 'lucide-react';
 import { generations, assets } from '../services/api';
+import DiagramCodePanel from '../components/DiagramCodePanel';
 
 /* ── Auto-resizing textarea ── */
 function AutoTextarea({ value, onChange, className = '', ...props }) {
@@ -209,9 +210,81 @@ function TwoColumnSlide({ content, onField, onColumnBullet, onAddColumnBullet, o
         <div className="bg-gradient-to-b from-transparent via-[#CBD5E1] to-transparent my-3" />
         {renderColumn('b', content.column_b_heading, content.column_b_bullets, 'bg-[#10B981]')}
       </div>
+      <div className="flex items-center gap-2 border-t border-[#E2E8F0] pt-2 px-3">
+        <span className="text-[12px] font-bold text-cobalt shrink-0">Verdict</span>
+        <input type="text" value={content.verdict || ''}
+          onChange={(e) => onField('verdict', e.target.value)}
+          className={`${inputBase} text-[12px] text-navy`}
+          placeholder="Optional one-line conclusion" />
+      </div>
     </div>
   );
 }
+
+function KeyStatsSlide({ content, onField, onStat, onAddStat, onRemoveStat }) {
+  const stats = content.stats || [];
+  const cols = stats.length <= 3 ? Math.max(stats.length, 1) : stats.length === 4 ? 2 : 3;
+  return (
+    <div className="flex flex-col gap-3 h-full">
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-5 bg-navy rounded-full shrink-0" />
+        <input type="text" value={content.title}
+          onChange={(e) => onField('title', e.target.value)}
+          className={`${inputBase} font-heading text-[18px] font-bold text-navy`}
+          placeholder="Slide title" />
+      </div>
+      <div className="grid gap-3 flex-1 min-h-0" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+        {stats.map((st, i) => (
+          <div key={i} className="group relative bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg border-t-[3px] border-t-cobalt p-3 flex flex-col gap-1 min-w-0">
+            <input type="text" value={st.value}
+              onChange={(e) => onStat(i, 'value', e.target.value)}
+              className={`${inputBase} font-heading text-[26px] font-extrabold text-cobalt leading-none`}
+              placeholder="0" />
+            <input type="text" value={st.label}
+              onChange={(e) => onStat(i, 'label', e.target.value)}
+              className={`${inputBase} text-[11px] font-bold text-navy uppercase tracking-wider`}
+              placeholder="Label" />
+            <AutoTextarea value={st.detail}
+              onChange={(val) => onStat(i, 'detail', val)}
+              className={`${inputBase} text-[11px] text-slate leading-snug`}
+              placeholder="Why it matters" />
+            <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button type="button" onClick={() => onAddStat(i)} disabled={stats.length >= 6} title="Add stat"
+                className="p-0 w-4 h-4 flex items-center justify-center text-slate hover:text-cobalt disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><Plus size={11} /></button>
+              <button type="button" onClick={() => onRemoveStat(i)} disabled={stats.length <= 1} title="Remove stat"
+                className="p-0 w-4 h-4 flex items-center justify-center text-slate hover:text-red-600 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><X size={11} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DiagramSlide({ content, genId, onField }) {
+  return (
+    <div className="flex flex-col gap-2 h-full">
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-5 bg-navy rounded-full shrink-0" />
+        <input type="text" value={content.title}
+          onChange={(e) => onField('title', e.target.value)}
+          className={`${inputBase} font-heading text-[18px] font-bold text-navy`}
+          placeholder="Slide title" />
+      </div>
+      <div className="flex-1 min-h-0 flex items-center justify-center">
+        {content.diagram_file
+          ? <img src={generations.diagramUrl(genId, content.diagram_file)} alt={content.caption || content.title}
+              className="max-w-full max-h-full object-contain" />
+          : <p className="hint">Diagram not rendered yet.</p>}
+      </div>
+      <input type="text" value={content.caption || ''}
+        onChange={(e) => onField('caption', e.target.value)}
+        className={`${inputBase} text-[12px] italic text-slate text-center`}
+        placeholder="Caption" />
+    </div>
+  );
+}
+
 
 function StatFocusSlide({ content, onField }) {
   return (
@@ -586,7 +659,7 @@ const LAYOUT_LABELS = {
   stat_focus: 'Key Stat', quote_highlight: 'Quote', checklist: 'Checklist',
   closing: 'Closing', section_divider: 'Divider', big_idea: 'Big Idea',
   timeline: 'Timeline', process_flow: 'Process', icon_grid: 'Icon Grid',
-  comparison_table: 'Table',
+  comparison_table: 'Table', key_stats: 'Key Stats', diagram: 'Diagram',
 };
 
 function SlideThumbnail({ layout }) {
@@ -732,6 +805,27 @@ function SlideThumbnail({ layout }) {
           ))}
         </div>
       );
+    case 'key_stats':
+      return (
+        <div className={`${base} bg-white border border-[#E2E8F0] flex items-center justify-center gap-[3px] px-1`}>
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex-1 flex flex-col items-center border-t-2 border-cobalt/50 pt-0.5">
+              <div className="text-[6px] font-extrabold text-cobalt leading-none">{n * 12}</div>
+              <div className="w-[70%] h-[1.5px] bg-[#CBD5E1] rounded-full mt-0.5" />
+            </div>
+          ))}
+        </div>
+      );
+    case 'diagram':
+      return (
+        <div className={`${base} bg-white border border-[#E2E8F0] flex items-center justify-center gap-[2px] px-1`}>
+          <div className="w-[7px] h-[5px] border border-cobalt/60 rounded-[1px]" />
+          <div className="w-[4px] h-px bg-[#94A3B8]" />
+          <div className="w-[6px] h-[6px] border border-cobalt/60 rotate-45" />
+          <div className="w-[4px] h-px bg-[#94A3B8]" />
+          <div className="w-[7px] h-[5px] border border-cobalt/60 rounded-[1px]" />
+        </div>
+      );
     default: // bullets
       return (
         <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col justify-center px-1.5 gap-[3px]`}>
@@ -866,6 +960,29 @@ export default function Review() {
       i === activeSlide ? { ...s, content: updatedContent, title: field === 'title' ? value : s.title } : s,
     );
     applyUpdate({ ...gen, outline: { ...gen.outline, slides: updatedSlides } });
+  }
+
+  // Several fields as one edit (one undo step), e.g. diagram code and its rendered image.
+  function updateSlideFields(fields) {
+    const updatedContent = { ...content, ...fields };
+    const updatedSlides = slides.map((s, i) =>
+      i === activeSlide ? { ...s, content: updatedContent, title: fields.title ?? s.title } : s,
+    );
+    applyUpdate({ ...gen, outline: { ...gen.outline, slides: updatedSlides } });
+  }
+
+  // Key stats helpers
+  function updateStat(idx, field, value) {
+    const a = (content.stats || []).map((st, i) => i === idx ? { ...st, [field]: value } : st);
+    updateSlideField('stats', a);
+  }
+  function addStat(after) {
+    const a = [...(content.stats || [])]; a.splice(after + 1, 0, { value: '', label: '', detail: '' });
+    updateSlideField('stats', a);
+  }
+  function removeStat(idx) {
+    if ((content.stats || []).length <= 1) return;
+    updateSlideField('stats', (content.stats || []).filter((_, i) => i !== idx));
   }
 
   // Bullets layout helpers
@@ -1066,6 +1183,11 @@ export default function Review() {
       case 'comparison_table':
         return <ComparisonTableSlide content={content} onField={onField}
           onCell={updateCell} onColumnHeader={updateColumnHeader} onAddRow={addTableRow} onRemoveRow={removeTableRow} />;
+      case 'key_stats':
+        return <KeyStatsSlide content={content} onField={onField}
+          onStat={updateStat} onAddStat={addStat} onRemoveStat={removeStat} />;
+      case 'diagram':
+        return <DiagramSlide content={content} genId={id} onField={onField} />;
       case 'bullets':
       default:
         return <BulletsSlide content={content} onField={onField}
@@ -1176,6 +1298,15 @@ export default function Review() {
               <SlideFrame noPad={layout === 'title' || layout === 'closing' || layout === 'section_divider'}>{renderSlide()}</SlideFrame>
             </article>
           </SlideFitContainer>
+
+          {/* Diagram code and PNG download — kept outside the scaled slide so it stays readable */}
+          {layout === 'diagram' && content && (
+            <div className="shrink-0 border-t border-border bg-white px-4 py-2 max-h-[45%] overflow-y-auto">
+              <DiagramCodePanel key={activeSlide} genId={id} content={content}
+                downloadName={content.title || 'diagram'}
+                onApply={(code, key) => updateSlideFields({ mermaid_code: code, diagram_file: key })} />
+            </div>
+          )}
 
           {/* Speaker notes — bottom strip */}
           {hasSpeakerNotes && content && (

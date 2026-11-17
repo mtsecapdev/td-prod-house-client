@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Download, Trash2, FileSliders, FileText, Image, LayoutGrid } from 'lucide-react';
+import { Search, Download, Trash2, FileSliders, FileText, Image } from 'lucide-react';
 import { assets } from '../services/api';
 
 const kindOptions = [
@@ -7,11 +7,10 @@ const kindOptions = [
   { value: 'deck', label: 'Slide decks', icon: FileSliders },
   { value: 'doc', label: 'Documents', icon: FileText },
   { value: 'image', label: 'Images', icon: Image },
-  { value: 'infographic', label: 'Infographics', icon: LayoutGrid },
 ];
 
 function KindIcon({ kind, size = 18 }) {
-  const icons = { deck: FileSliders, doc: FileText, image: Image, infographic: LayoutGrid };
+  const icons = { deck: FileSliders, doc: FileText, image: Image };
   const Icon = icons[kind] || FileSliders;
   return <Icon size={size} />;
 }

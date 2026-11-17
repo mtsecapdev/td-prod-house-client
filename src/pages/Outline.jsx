@@ -8,6 +8,7 @@ const LAYOUT_OPTIONS = [
   { key: 'bullets',          label: 'Bullets',           description: 'Standard content slide' },
   { key: 'two_column',       label: 'Two Column',        description: 'Side-by-side comparison' },
   { key: 'stat_focus',       label: 'Key Stat',          description: 'Highlight a single metric' },
+  { key: 'key_stats',        label: 'Key Stats',         description: '3-6 numbers side by side' },
   { key: 'quote_highlight',  label: 'Quote',             description: 'Featured quote or principle' },
   { key: 'checklist',        label: 'Checklist',         description: 'Steps or procedure list' },
   { key: 'section_divider',  label: 'Section Divider',   description: 'Visual break between topics' },
@@ -16,6 +17,7 @@ const LAYOUT_OPTIONS = [
   { key: 'process_flow',     label: 'Process Flow',      description: 'Sequential workflow steps' },
   { key: 'icon_grid',        label: 'Icon Grid',         description: 'Concept cards in a grid' },
   { key: 'comparison_table', label: 'Comparison Table',  description: 'Structured data table' },
+  { key: 'diagram',          label: 'Diagram',           description: 'Flowchart, sequence or mind map' },
   { key: 'closing',          label: 'Closing',           description: 'Takeaways and call to action' },
 ];
 

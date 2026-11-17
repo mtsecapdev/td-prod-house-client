@@ -219,43 +219,16 @@ export const generations = {
 
   imageUrl: (id) => `${BASE}/generations/${id}/image`,
 
-  generateInfographic: (id, onMessage) => {
-    return new Promise((resolve, reject) => {
-      fetch(`${BASE}/generations/${id}/generate-infographic`, { method: 'POST' })
-        .then((res) => {
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-
-          function read() {
-            reader.read().then(({ done, value }) => {
-              if (done) return resolve();
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n\n');
-              buffer = lines.pop();
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try {
-                    onMessage(JSON.parse(line.slice(6)));
-                  } catch {}
-                }
-              }
-              read();
-            }).catch(reject);
-          }
-          read();
-        })
-        .catch(reject);
-    });
-  },
-
-  editInfographic: (id, instruction, history = []) =>
-    request(`/generations/${id}/infographic/chat`, {
+  // Renders Mermaid typed by the user; returns { diagram_file }. Throws with Mermaid's message if invalid.
+  renderDiagram: (id, mermaidCode) =>
+    request(`/generations/${id}/diagram`, {
       method: 'POST',
-      body: JSON.stringify({ instruction, history }),
+      body: JSON.stringify({ mermaid_code: mermaidCode }),
     }),
 
-  infographicUrl: (id) => `${BASE}/generations/${id}/infographic`,
+  diagramUrl: (id, key) => `${BASE}/generations/${id}/diagrams/${key}`,
+  diagramDownloadUrl: (id, key, name = 'diagram') =>
+    `${BASE}/generations/${id}/diagrams/${key}?download=1&name=${encodeURIComponent(name)}`,
 
   releaseGpu: () => request('/generations/release-gpu', { method: 'POST' }),
 

@@ -9,6 +9,7 @@ const SECTION_TYPE_OPTIONS = [
   { key: 'procedure',       label: 'Procedure',  description: 'Step-by-step instructions' },
   { key: 'key_points',      label: 'Key Points', description: 'Highlighted facts or rules' },
   { key: 'reference_table', label: 'Table',      description: 'Structured tabular data' },
+  { key: 'diagram',         label: 'Diagram',    description: 'Figure: flowchart, sequence or mind map' },
   { key: 'summary',         label: 'Summary',    description: 'Closing recap and next steps' },
 ];
 
