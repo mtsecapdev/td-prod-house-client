@@ -605,11 +605,14 @@ function IconGridSlide({ content, onField, onItem, onAddItem, onRemoveItem }) {
   );
 }
 
+// Sized like render_pptx.py's comparison table (14pt header, 12pt cells, ~0.7in rows, centred cells), so the
+// preview matches the downloaded file. Row +/x controls sit inside the last cell: an extra column for them
+// made the header bar shorter than the rows.
 function ComparisonTableSlide({ content, onField, onCell, onColumnHeader, onAddRow, onRemoveRow }) {
   const columns = content.columns || [];
   const rows = content.rows || [];
   return (
-    <div className="flex flex-col h-full gap-2">
+    <div className="flex flex-col h-full gap-3">
       <div className="flex items-center gap-2">
         <div className="w-1 h-5 bg-navy rounded-full shrink-0" />
         <input type="text" value={content.title}
@@ -617,40 +620,39 @@ function ComparisonTableSlide({ content, onField, onCell, onColumnHeader, onAddR
           className={`${inputBase} font-heading text-[18px] font-bold text-navy`}
           placeholder="Table title" />
       </div>
-      <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-[11px]">
+      <div className="flex-1 min-h-0 overflow-auto">
+        <table className="w-full border-collapse table-fixed">
           <thead>
             <tr>
               {columns.map((col, ci) => (
-                <th key={ci} className="bg-cobalt text-white text-left px-2 py-1.5 font-semibold">
+                <th key={ci} className="bg-cobalt text-white px-3 h-[50px] font-semibold">
                   <input type="text" value={col}
                     onChange={(e) => onColumnHeader(ci, e.target.value)}
-                    className="w-full bg-transparent border-0 outline-none text-white text-[11px] font-semibold p-0"
+                    className="w-full bg-transparent border-0 outline-none text-white text-[14px] font-semibold p-0 text-center"
                     placeholder="Header" />
                 </th>
               ))}
-              <th className="w-6" />
             </tr>
           </thead>
           <tbody>
             {rows.map((row, ri) => (
               <tr key={ri} className={`group ${ri % 2 === 0 ? 'bg-[var(--color-canvas)]' : 'bg-white'}`}>
                 {columns.map((_, ci) => (
-                  <td key={ci} className="px-2 py-1 border-b border-[var(--color-border)]">
+                  <td key={ci} className="relative px-3 h-[50px] border-b border-[var(--color-border)]">
                     <input type="text" value={(row[ci] || '')}
                       onChange={(e) => onCell(ri, ci, e.target.value)}
-                      className={`${inputBase} text-[11px] text-navy`}
+                      className={`${inputBase} text-[12px] text-navy text-center`}
                       placeholder="-" />
+                    {ci === columns.length - 1 && (
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button type="button" onClick={() => onAddRow(ri)} title="Add a row below"
+                          className="p-0 w-4 h-4 flex items-center justify-center text-slate hover:text-cobalt cursor-pointer bg-white/80 rounded border-0"><Plus size={10} /></button>
+                        <button type="button" onClick={() => onRemoveRow(ri)} disabled={rows.length <= 1} title="Remove this row"
+                          className="p-0 w-4 h-4 flex items-center justify-center text-slate hover:text-red-600 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-white/80 rounded border-0"><X size={10} /></button>
+                      </div>
+                    )}
                   </td>
                 ))}
-                <td className="px-0.5 border-b border-[var(--color-border)]">
-                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button type="button" onClick={() => onAddRow(ri)}
-                      className="p-0 w-3 h-3 flex items-center justify-center text-slate hover:text-cobalt cursor-pointer bg-transparent border-0"><Plus size={8} /></button>
-                    <button type="button" onClick={() => onRemoveRow(ri)} disabled={rows.length <= 1}
-                      className="p-0 w-3 h-3 flex items-center justify-center text-slate hover:text-red-600 disabled:opacity-20 cursor-pointer disabled:cursor-default bg-transparent border-0"><X size={8} /></button>
-                  </div>
-                </td>
               </tr>
             ))}
           </tbody>
