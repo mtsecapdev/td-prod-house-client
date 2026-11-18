@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare, Loader2, Pencil } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import Pictures from '../components/figures/Pictures';
@@ -11,6 +11,8 @@ import AddItemForm from '../components/plan/AddItemForm';
 import TemplateMenu from '../components/plan/TemplateMenu';
 import AgentPanel from '../components/plan/AgentPanel';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
+import { useItemDelete, shiftedHistory } from '../components/plan/useItemDelete';
+import DeletedToast from '../components/plan/DeletedToast';
 import { useTemplates, findTemplate, templateStyle } from '../components/plan/templates';
 
 /* ── Auto-resizing textarea ── */
@@ -896,6 +898,7 @@ export default function Review() {
   const undoStack = useRef({});
   const [stackSizes, setStackSizes] = useState({});
   const redoStack = useRef({});
+  const navRef = useRef(null);
   // Slides that are not written yet are written now and appear one by one.
   const live = useLiveWrite(id, gen, setGen, 'slides');
   const templateData = useTemplates();
@@ -975,9 +978,25 @@ export default function Review() {
         else { e.preventDefault(); undo(); }
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); }
+      // Delete/Backspace removes the selected slide when the slide list has focus (a selected picture handles
+      // the key itself first and marks it handled).
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !e.defaultPrevented && navRef.current?.contains(document.activeElement)) {
+        e.preventDefault();
+        itemDelete.remove(activeSlide);
+      }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  });
+
+  const itemDelete = useItemDelete({
+    gen, setGen, listKey: 'slides', saveOutline,
+    shiftHistory: (at, delta) => {
+      undoStack.current = shiftedHistory(undoStack.current, at, delta);
+      redoStack.current = shiftedHistory(redoStack.current, at, delta);
+      setStackSizes((sizes) => shiftedHistory(sizes, at, delta));
+    },
+    active: activeSlide, setActive: setActiveSlide, blocked: live.phase === 'writing',
   });
 
   if (!gen || !gen.outline?.slides) {
@@ -1327,7 +1346,7 @@ export default function Review() {
       {/* Main area: slide nav + preview + panel */}
       <div className="flex-1 flex min-h-0">
         {/* Slide nav — left panel */}
-        <nav className="w-[100px] lg:w-[200px] shrink-0 border-r border-border bg-white overflow-y-auto py-2 px-1.5 lg:px-2">
+        <nav ref={navRef} className="w-[100px] lg:w-[200px] shrink-0 border-r border-border bg-white overflow-y-auto py-2 px-1.5 lg:px-2">
           <ol className="list-none m-0 p-0 flex flex-col gap-1">
             {slides.map((s, i) => (
               <li key={i} className="group/item relative">
@@ -1345,6 +1364,12 @@ export default function Review() {
                     </span>
                   </div>
                 </button>
+                {itemDelete.canDelete && (
+                  <button type="button" onClick={() => itemDelete.remove(i)} title={`Delete slide ${i + 1}`} aria-label={`Delete slide ${i + 1}`}
+                    className="absolute right-1 top-1 z-10 w-6 h-6 rounded-md bg-white/90 border-0 text-slate hover:text-red-700 hover:bg-red-50 cursor-pointer flex items-center justify-center opacity-0 group-hover/item:opacity-100 focus:opacity-100">
+                    <Trash2 size={13} />
+                  </button>
+                )}
                 {/* Add a slide here: shown between slides on hover */}
                 <button type="button" onClick={() => { setAddAfter(i); setChatOpen(true); setPanelTab('item'); }}
                   title={`Add a slide after slide ${i + 1}`}
@@ -1433,6 +1458,7 @@ export default function Review() {
           </div>
         )}
       </div>
+      <DeletedToast removed={itemDelete.removed} noun="slide" onUndo={itemDelete.undo} onClose={itemDelete.dismiss} />
     </main>
   );
 }

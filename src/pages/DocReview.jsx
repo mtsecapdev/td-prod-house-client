@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink, Loader2, Pencil } from 'lucide-react';
+import { Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import ItemPanel from '../components/plan/ItemPanel';
@@ -11,6 +11,8 @@ import AdjustableImage from '../components/figures/AdjustableImage';
 import TemplateMenu from '../components/plan/TemplateMenu';
 import AgentPanel from '../components/plan/AgentPanel';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
+import { useItemDelete, shiftedHistory } from '../components/plan/useItemDelete';
+import DeletedToast from '../components/plan/DeletedToast';
 import { useTemplates, findTemplate, templateStyle } from '../components/plan/templates';
 
 function AutoTextarea({ value, onChange, className = '', ...props }) {
@@ -385,6 +387,7 @@ export default function DocReview() {
   const [stackSizes, setStackSizes] = useState({});
   const redoStack = useRef({});
   const sectionRefs = useRef([]);
+  const navRef = useRef(null);
   // Sections that are not written yet are written now and appear one by one.
   const live = useLiveWrite(id, gen, setGen, 'sections');
   const templateData = useTemplates();
@@ -464,9 +467,24 @@ export default function DocReview() {
         else { e.preventDefault(); undo(); }
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); }
+      // Delete/Backspace removes the selected section when the section list has focus.
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !e.defaultPrevented && navRef.current?.contains(document.activeElement)) {
+        e.preventDefault();
+        itemDelete.remove(activeSection);
+      }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  });
+
+  const itemDelete = useItemDelete({
+    gen, setGen, listKey: 'sections', saveOutline,
+    shiftHistory: (at, delta) => {
+      undoStack.current = shiftedHistory(undoStack.current, at, delta);
+      redoStack.current = shiftedHistory(redoStack.current, at, delta);
+      setStackSizes((sizes) => shiftedHistory(sizes, at, delta));
+    },
+    active: activeSection, setActive: setActiveSection, blocked: live.phase === 'writing',
   });
 
   if (!gen || !gen.outline?.sections) {
@@ -741,7 +759,7 @@ export default function DocReview() {
       {/* Main area: section nav + document + chat panel */}
       <div className="flex-1 flex min-h-0">
         {/* Section nav — left panel */}
-        <nav className="w-[100px] lg:w-[200px] shrink-0 border-r border-border bg-white overflow-y-auto py-2 px-1.5 lg:px-2">
+        <nav ref={navRef} className="w-[100px] lg:w-[200px] shrink-0 border-r border-border bg-white overflow-y-auto py-2 px-1.5 lg:px-2">
           <ol className="list-none m-0 p-0 flex flex-col gap-1">
             {sections.map((s, i) => (
               <li key={i} className="group/item relative">
@@ -759,6 +777,12 @@ export default function DocReview() {
                     </span>
                   </div>
                 </button>
+                {itemDelete.canDelete && (
+                  <button type="button" onClick={() => itemDelete.remove(i)} title={`Delete section ${i + 1}`} aria-label={`Delete section ${i + 1}`}
+                    className="absolute right-1 top-1 z-10 w-6 h-6 rounded-md bg-white/90 border-0 text-slate hover:text-red-700 hover:bg-red-50 cursor-pointer flex items-center justify-center opacity-0 group-hover/item:opacity-100 focus:opacity-100">
+                    <Trash2 size={13} />
+                  </button>
+                )}
                 {/* Add a section here: shown between sections on hover */}
                 <button type="button" onClick={() => { setAddAfter(i); setChatOpen(true); setPanelTab('item'); }}
                   title={`Add a section after section ${i + 1}`}
@@ -826,6 +850,7 @@ export default function DocReview() {
           </div>
         )}
       </div>
+      <DeletedToast removed={itemDelete.removed} noun="section" onUndo={itemDelete.undo} onClose={itemDelete.dismiss} />
     </main>
   );
 }
