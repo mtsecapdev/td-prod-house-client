@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Upload, Download, Loader2, Trash2, Copy, Sparkles } from 'lucide-react';
 import { documents, generations } from '../services/api';
 import { KIND } from '../components/plan/kindConfig';
+import ConfirmDocumentDelete from '../components/figures/ConfirmDocumentDelete';
 
 // Gamma-style start: one box for either a description of what to make or the user's own notes/outline.
 // The app tells them apart (with a switch for when it guesses wrong): a description is planned from the
@@ -45,6 +46,7 @@ export default function Brief() {
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState('');
   const [recentGens, setRecentGens] = useState([]);
+  const [deletingDoc, setDeletingDoc] = useState(null);
 
   function loadDocs() {
     documents.list().then((d) => setDocs(d.docs || d || [])).catch(() => {});
@@ -111,14 +113,10 @@ export default function Brief() {
     if (fileRef.current) fileRef.current.value = '';
   }
 
-  async function handleDelete(id) {
-    try {
-      await documents.delete(id);
-      setSelectedIds((prev) => prev.filter((x) => x !== id));
-      loadDocs();
-    } catch (err) {
-      console.error('Delete failed:', err);
-    }
+  function handleDeleted(id) {
+    setDeletingDoc(null);
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
+    loadDocs();
   }
 
   const detected = looksLikeContent(text) ? 'content' : 'instructions';
@@ -293,7 +291,7 @@ export default function Brief() {
                       <Download size={16} />
                     </a>
                   )}
-                  <button type="button" onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(d.id); }}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setDeletingDoc(d); }}
                     className="text-slate hover:text-red-600 p-1" title="Delete document">
                     <Trash2 size={16} />
                   </button>
@@ -311,6 +309,7 @@ export default function Brief() {
           </button>
         </div>
       </form>
+      {deletingDoc && <ConfirmDocumentDelete doc={deletingDoc} onCancel={() => setDeletingDoc(null)} onDeleted={handleDeleted} />}
     </main>
   );
 }

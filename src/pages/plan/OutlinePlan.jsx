@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { generations } from '../../services/api';
 import { KIND, TEXT_AMOUNTS, typeLabel } from '../../components/plan/kindConfig';
+import FigureImage from '../../components/figures/FigureImage';
 import JobCard from '../../components/plan/JobCard';
 import { usePlanGeneration, jobRunning, jobFailed } from '../../components/plan/usePlanGeneration';
 
@@ -136,6 +137,12 @@ function Card({ kind, genId, item, index, total, onChange, onMove, onRemove }) {
           rows={Math.max(2, (item.bullets || []).length)} value={bullets} aria-label="Bullets, one per line"
           onChange={(e) => onChange({ bullets: e.target.value.split('\n') })}
           placeholder="What it should cover, one point per line" />
+        {item[kind.typeKey] === 'figure' && item.figure_id && (
+          <div className="flex items-center gap-3 pt-1">
+            <FigureImage figureId={item.figure_id} alt="" className="h-[72px] max-w-[140px] object-contain border border-border rounded bg-white" />
+            {item.type_reason && <span className="text-[12px] text-slate">{item.type_reason}</span>}
+          </div>
+        )}
         <div className="flex items-center gap-2 flex-wrap pt-1">
           <button type="button" onClick={() => setPicker(!picker)}
             className="chip-muted cursor-pointer hover:bg-[#E2E8F0] transition-colors text-[12px] flex items-center gap-1"

@@ -74,6 +74,8 @@ export const TEXT_AMOUNTS = [
 ];
 
 export function typeLabel(kind, key) {
+  // Figure items come from document figures (planner suggestions, pickers), not the layout chooser.
+  if (key === 'figure') return 'Figure';
   return kind.options.find((o) => o.key === key)?.label || key;
 }
 

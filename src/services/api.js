@@ -82,8 +82,9 @@ export const documents = {
     });
   },
   downloadUrl: (id) => `${BASE}/documents/${id}/file`,
-  figureUrl: (figureId) => `${BASE}/documents/figures/${figureId}`,
-  delete: (id) => request(`/documents/${id}`, { method: 'DELETE' }),
+  // force: delete even when its figures are used in decks/documents (check usage() first).
+  delete: (id, { force = false } = {}) => request(`/documents/${id}${force ? '?force=1' : ''}`, { method: 'DELETE' }),
+  usage: (id) => request(`/documents/${id}/usage`),
 };
 
 export const generations = {
@@ -122,6 +123,9 @@ export const generations = {
   agentApply: (id, steps) =>
     request(`/generations/${id}/agent/apply`, { method: 'POST', body: JSON.stringify({ steps }) }),
   agentUndo: (id) => request(`/generations/${id}/agent/undo`, { method: 'POST' }),
+  // Puts a document figure in as a Figure slide/section; mode 'replace' | 'after'; no index = before the closing.
+  addFigure: (id, figureId, { index, mode = 'after' } = {}) =>
+    request(`/generations/${id}/figures`, { method: 'POST', body: JSON.stringify({ figureId, index, mode }) }),
   // "Add with AI": plans and writes a new slide/section after index `after`.
   addItem: (type, id, after, description) =>
     request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}`, {
@@ -233,6 +237,21 @@ export const generations = {
   releaseGpu: () => request('/generations/release-gpu', { method: 'POST' }),
 
   delete: (id) => request(`/generations/${id}`, { method: 'DELETE' }),
+};
+
+// Figures from ingested documents (the Assets page, figure pickers, chat answers).
+export const figures = {
+  list: ({ q = '', documentIds = [], includeHidden = false } = {}) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (documentIds.length) params.set('documentIds', documentIds.join(','));
+    if (includeHidden) params.set('includeHidden', '1');
+    return request(`/figures?${params}`);
+  },
+  imageUrl: (id) => `${BASE}/figures/${id}/image`,
+  usage: (id) => request(`/figures/${id}/usage`),
+  setHidden: (id, hidden) => request(`/figures/${id}`, { method: 'PATCH', body: JSON.stringify({ hidden }) }),
+  remove: (id, { force = false } = {}) => request(`/figures/${id}${force ? '?force=1' : ''}`, { method: 'DELETE' }),
 };
 
 export const conversations = {

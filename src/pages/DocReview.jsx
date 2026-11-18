@@ -5,6 +5,7 @@ import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import ItemPanel from '../components/plan/ItemPanel';
 import AddItemForm from '../components/plan/AddItemForm';
+import FigureImage from '../components/figures/FigureImage';
 import TemplateMenu from '../components/plan/TemplateMenu';
 import AgentPanel from '../components/plan/AgentPanel';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
@@ -27,7 +28,7 @@ const inputBase = 'w-full bg-transparent border-0 outline-none px-0 py-0.5 round
 
 const TYPE_LABELS = {
   heading: 'Heading', body: 'Body', procedure: 'Procedure',
-  key_points: 'Key Points', reference_table: 'Table', diagram: 'Diagram', summary: 'Summary',
+  key_points: 'Key Points', reference_table: 'Table', diagram: 'Diagram', figure: 'Figure', summary: 'Summary',
 };
 
 function HeadingSection({ content, onField }) {
@@ -298,6 +299,37 @@ function SummarySection({ content, onField, onRecapPoint, onAddRecapPoint, onRem
         </div>
       )}
       {content.notes !== undefined && content.notes && (
+        <AutoTextarea value={content.notes}
+          onChange={(val) => onField('notes', val)}
+          className={`${inputBase} text-[13px] text-slate mt-4 leading-relaxed`}
+          placeholder="Notes" />
+      )}
+    </div>
+  );
+}
+
+function FigureSection({ content, onField }) {
+  return (
+    <div className="py-6">
+      <AutoTextarea value={content.title}
+        onChange={(val) => onField('title', val)}
+        className={`${inputBase} font-heading text-[22px] font-bold text-navy mb-2`}
+        placeholder="Section title" />
+      <AutoTextarea value={content.introduction || ''}
+        onChange={(val) => onField('introduction', val)}
+        className={`${inputBase} text-[15px] text-slate mb-4 leading-relaxed`}
+        placeholder="Introduction" />
+      <figure className="m-0 flex flex-col items-center gap-2">
+        <FigureImage figureId={content.figure_id} alt={content.caption || content.title}
+          className="max-w-full max-h-[520px] object-contain border border-[#E2E8F0] rounded-md" />
+        <figcaption className="w-full">
+          <AutoTextarea value={content.caption || ''}
+            onChange={(val) => onField('caption', val)}
+            className={`${inputBase} text-[13px] italic text-slate text-center`}
+            placeholder="Figure caption" />
+        </figcaption>
+      </figure>
+      {content.notes && (
         <AutoTextarea value={content.notes}
           onChange={(val) => onField('notes', val)}
           className={`${inputBase} text-[13px] text-slate mt-4 leading-relaxed`}
@@ -629,6 +661,8 @@ export default function DocReview() {
       case 'diagram':
         return <DiagramSection content={c} genId={id} templateId={template?.id} onField={h.onField}
           onApplyCode={(code, key) => updateFieldsAt(secIdx, { mermaid_code: code, diagram_file: key })} />;
+      case 'figure':
+        return <FigureSection content={c} onField={h.onField} />;
       case 'summary':
         return <SummarySection content={c} onField={h.onField}
           onRecapPoint={h.onRecapPoint} onAddRecapPoint={h.onAddRecapPoint} onRemoveRecapPoint={h.onRemoveRecapPoint} />;
@@ -779,7 +813,9 @@ export default function DocReview() {
                 }} />
             ) : (
               <ItemPanel key={activeSection} type="doc" genId={id} index={activeSection} item={sections[activeSection]}
-                onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }} />
+                documentIds={gen.source_document_ids || []}
+                onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }}
+                onAdded={async (index) => { const r = await generations.get(id); setGen(r.generation); setActiveSection(index); }} />
             )}
           </div>
         )}

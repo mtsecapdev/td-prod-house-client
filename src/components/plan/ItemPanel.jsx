@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { Send, Loader2, FileText, ChevronDown, ChevronRight, Layout } from 'lucide-react';
+import { Send, Loader2, FileText, ChevronDown, ChevronRight, Layout, ImageIcon } from 'lucide-react';
 import { generations } from '../../services/api';
 import { KIND } from './kindConfig';
+import FigurePicker from '../figures/FigurePicker';
 
 const SHORTER = 'Make it about 40% shorter. Keep the most important facts.';
 const SIMPLER = 'Use simpler language a non-specialist would follow. Keep the facts.';
 
 /**
  * The "This slide / This section" panel: say what to change, with a few one-click suggestions, a layout
- * chooser, and the pages the item was written from.
+ * chooser, a document figure picker, and the pages the item was written from.
  */
-export default function ItemPanel({ type, genId, index, item, onUpdated }) {
+export default function ItemPanel({ type, genId, index, item, documentIds = [], onUpdated, onAdded }) {
   const kind = KIND[type];
   const [history, setHistory] = useState([]);
   const [input, setInput] = useState('');
@@ -18,6 +19,7 @@ export default function ItemPanel({ type, genId, index, item, onUpdated }) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [suggestions, setSuggestions] = useState(null);
   const [showSources, setShowSources] = useState(false);
+  const [pickingFigure, setPickingFigure] = useState(false);
   const edit = type === 'deck' ? generations.editSlide : generations.editSection;
   const sources = item?.sources || [];
   const pages = [...new Set(sources.map((s) => s.page).filter((p) => p != null))].sort((a, b) => a - b);
@@ -58,6 +60,16 @@ export default function ItemPanel({ type, genId, index, item, onUpdated }) {
     } catch {
       setSuggestions([]);
     }
+  }
+
+  // Replacing keeps the user on this item; adding after moves them to the new one.
+  async function placeFigure(figure, mode) {
+    const r = await generations.addFigure(genId, figure.id, { index, mode });
+    setPickingFigure(false);
+    const label = `${mode === 'replace' ? 'Use' : 'Add'} ${figure.caption || 'a figure'}`;
+    setHistory((h) => [...h, { role: 'user', content: label }, { role: 'assistant', content: 'Done.' }]);
+    if (mode === 'after' && onAdded) await onAdded(r.index);
+    else await onUpdated();
   }
 
   if (!item?.content) {
@@ -128,7 +140,21 @@ export default function ItemPanel({ type, genId, index, item, onUpdated }) {
         <button type="button" disabled={busy} onClick={openLayouts} className="chip-muted text-[12px] cursor-pointer hover:bg-[#E2E8F0] border-0 flex items-center gap-1">
           <Layout size={11} />Change layout
         </button>
+        {documentIds.length > 0 && (
+          <button type="button" disabled={busy} onClick={() => setPickingFigure(true)} className="chip-muted text-[12px] cursor-pointer hover:bg-[#E2E8F0] border-0 flex items-center gap-1">
+            <ImageIcon size={11} />{current === 'figure' ? 'Change figure' : 'Use a document figure'}
+          </button>
+        )}
       </div>
+      {pickingFigure && (
+        <FigurePicker documentIds={documentIds}
+          title={current === 'figure' ? 'Change figure' : 'Use a figure from your documents'}
+          modes={current === 'figure' ? [{ value: 'replace', label: 'Replace' }] : [
+            { value: 'after', label: `Add as a new ${kind.noun}` },
+            { value: 'replace', label: `Replace this ${kind.noun}` },
+          ]}
+          onPick={placeFigure} onClose={() => setPickingFigure(false)} />
+      )}
       <form onSubmit={submit} className="shrink-0 flex gap-2 px-3 py-2.5">
         <input className="field flex-1 text-[13px]" value={input} onChange={(e) => setInput(e.target.value)} disabled={busy}
           placeholder={type === 'deck' ? 'e.g. focus on the Silesia delay' : 'e.g. add a caution about torque'} />

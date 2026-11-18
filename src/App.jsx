@@ -12,6 +12,7 @@ import ImageProgress from './pages/ImageProgress';
 import ImageReview from './pages/ImageReview';
 import Chat from './pages/Chat';
 import Library from './pages/Library';
+import Assets from './pages/Assets';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
             <Route index element={<Home />} />
             <Route path="chat" element={<Chat />} />
             <Route path="library" element={<Library />} />
+            <Route path="assets" element={<Assets />} />
             <Route path="create/deck" element={<Brief />} />
             <Route path="create/deck/:id/outline" element={<OutlinePlan />} />
             <Route path="create/deck/:id/review" element={<Review />} />

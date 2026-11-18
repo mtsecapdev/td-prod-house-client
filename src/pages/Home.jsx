@@ -4,6 +4,7 @@ import { FileSliders, FileText, Image, ArrowRight, Trash2, Upload, Download, Che
 import { generations, documents } from '../services/api';
 import { useUpload } from '../contexts/UploadContext';
 import { resumePath } from '../components/plan/kindConfig';
+import ConfirmDocumentDelete from '../components/figures/ConfirmDocumentDelete';
 
 const types = [
   { type: 'deck', label: 'Slide deck', desc: 'Training presentations with diagrams, key stats and timelines', icon: FileSliders, to: '/create/deck' },
@@ -74,6 +75,7 @@ export default function Home() {
 
   const [docs, setDocs] = useState([]);
   const [docsOpen, setDocsOpen] = useState(false);
+  const [deletingDoc, setDeletingDoc] = useState(null);
   const { uploading, uploadPhase, uploadMsg, uploadProgress, uploadFileName, startUpload } = useUpload();
   const fileRef = useRef(null);
 
@@ -100,15 +102,6 @@ export default function Home() {
     if (!file) return;
     startUpload(file, loadDocs);
     if (fileRef.current) fileRef.current.value = '';
-  }
-
-  async function handleDeleteDoc(id) {
-    try {
-      await documents.delete(id);
-      loadDocs();
-    } catch (err) {
-      console.error('Delete failed:', err);
-    }
   }
 
   function handleTrashClick(e, id) {
@@ -301,7 +294,7 @@ export default function Home() {
                         <Download size={16} />
                       </a>
                     )}
-                    <button type="button" onClick={() => handleDeleteDoc(d.id)}
+                    <button type="button" onClick={() => setDeletingDoc(d)}
                       className="text-slate hover:text-red-600 p-1" title="Delete document">
                       <Trash2 size={16} />
                     </button>
@@ -312,6 +305,10 @@ export default function Home() {
           </div>
         )}
       </div>
+      {deletingDoc && (
+        <ConfirmDocumentDelete doc={deletingDoc} onCancel={() => setDeletingDoc(null)}
+          onDeleted={() => { setDeletingDoc(null); loadDocs(); }} />
+      )}
     </main>
   );
 }

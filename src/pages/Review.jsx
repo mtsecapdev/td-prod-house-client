@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare, Loader2, Pencil } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
+import FigureImage from '../components/figures/FigureImage';
 import ItemPanel from '../components/plan/ItemPanel';
 import AddItemForm from '../components/plan/AddItemForm';
 import TemplateMenu from '../components/plan/TemplateMenu';
@@ -291,6 +292,27 @@ function DiagramSlide({ content, genId, templateId, onField }) {
   );
 }
 
+
+function FigureSlide({ content, onField }) {
+  return (
+    <div className="flex flex-col gap-2 h-full">
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-5 bg-navy rounded-full shrink-0" />
+        <input type="text" value={content.title}
+          onChange={(e) => onField('title', e.target.value)}
+          className={`${inputBase} font-heading text-[18px] font-bold text-navy`}
+          placeholder="Slide title" />
+      </div>
+      <div className="flex-1 min-h-0 flex items-center justify-center">
+        <FigureImage figureId={content.figure_id} alt={content.caption || content.title} className="max-w-full max-h-full object-contain" />
+      </div>
+      <input type="text" value={content.caption || ''}
+        onChange={(e) => onField('caption', e.target.value)}
+        className={`${inputBase} text-[12px] italic text-slate text-center`}
+        placeholder="Caption" />
+    </div>
+  );
+}
 
 function StatFocusSlide({ content, onField }) {
   return (
@@ -667,7 +689,7 @@ const LAYOUT_LABELS = {
   stat_focus: 'Key Stat', quote_highlight: 'Quote', checklist: 'Checklist',
   closing: 'Closing', section_divider: 'Divider', big_idea: 'Big Idea',
   timeline: 'Timeline', process_flow: 'Process', icon_grid: 'Icon Grid',
-  comparison_table: 'Table', key_stats: 'Key Stats', diagram: 'Diagram',
+  comparison_table: 'Table', key_stats: 'Key Stats', diagram: 'Diagram', figure: 'Figure',
 };
 
 function SlideThumbnail({ layout }) {
@@ -832,6 +854,13 @@ function SlideThumbnail({ layout }) {
           <div className="w-[6px] h-[6px] border border-cobalt/60 rotate-45" />
           <div className="w-[4px] h-px bg-[#94A3B8]" />
           <div className="w-[7px] h-[5px] border border-cobalt/60 rounded-[1px]" />
+        </div>
+      );
+    case 'figure':
+      return (
+        <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col items-center justify-center gap-[2px] px-1`}>
+          <div className="w-[60%] h-[2px] bg-navy/30 rounded-full" />
+          <div className="w-[22px] h-[11px] bg-cobalt/20 border border-cobalt/40 rounded-[1px]" />
         </div>
       );
     default: // bullets
@@ -1199,6 +1228,8 @@ export default function Review() {
           onStat={updateStat} onAddStat={addStat} onRemoveStat={removeStat} />;
       case 'diagram':
         return <DiagramSlide content={content} genId={id} templateId={template?.id} onField={onField} />;
+      case 'figure':
+        return <FigureSlide content={content} onField={onField} />;
       case 'bullets':
       default:
         return <BulletsSlide content={content} onField={onField}
@@ -1390,7 +1421,9 @@ export default function Review() {
                 }} />
             ) : (
               <ItemPanel key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
-                onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }} />
+                documentIds={gen.source_document_ids || []}
+                onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }}
+                onAdded={async (index) => { const r = await generations.get(id); setGen(r.generation); setActiveSlide(index); }} />
             )}
           </div>
         )}
