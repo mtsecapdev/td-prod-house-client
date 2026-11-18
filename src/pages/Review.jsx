@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare, Loader2, Pencil } from 'lucide-react';
-import { generations, assets } from '../services/api';
+import { figures, generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
-import FigureImage from '../components/figures/FigureImage';
+import { FigureRemoved } from '../components/figures/FigureImage';
+import AdjustableImage from '../components/figures/AdjustableImage';
 import ItemPanel from '../components/plan/ItemPanel';
 import AddItemForm from '../components/plan/AddItemForm';
 import TemplateMenu from '../components/plan/TemplateMenu';
@@ -280,8 +281,8 @@ function DiagramSlide({ content, genId, templateId, onField }) {
       </div>
       <div className="flex-1 min-h-0 flex items-center justify-center">
         {content.diagram_file
-          ? <img src={generations.diagramUrl(genId, content.diagram_file, templateId)} alt={content.caption || content.title}
-              className="max-w-full max-h-full object-contain" />
+          ? <AdjustableImage fill src={generations.diagramUrl(genId, content.diagram_file, templateId)} alt={content.caption || content.title}
+              value={content.image} onChange={(v) => onField('image', v)} />
           : <p className="hint">Diagram not rendered yet.</p>}
       </div>
       <input type="text" value={content.caption || ''}
@@ -304,7 +305,10 @@ function FigureSlide({ content, onField }) {
           placeholder="Slide title" />
       </div>
       <div className="flex-1 min-h-0 flex items-center justify-center">
-        <FigureImage figureId={content.figure_id} alt={content.caption || content.title} className="max-w-full max-h-full object-contain" />
+        {content.figure_id
+          ? <AdjustableImage key={content.figure_id} fill src={figures.imageUrl(content.figure_id)} alt={content.caption || content.title}
+              value={content.image} onChange={(v) => onField('image', v)} fallback={<FigureRemoved />} />
+          : <FigureRemoved />}
       </div>
       <input type="text" value={content.caption || ''}
         onChange={(e) => onField('caption', e.target.value)}

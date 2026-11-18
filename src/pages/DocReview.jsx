@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink, Loader2, Pencil } from 'lucide-react';
-import { generations, assets } from '../services/api';
+import { figures, generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import ItemPanel from '../components/plan/ItemPanel';
 import AddItemForm from '../components/plan/AddItemForm';
-import FigureImage from '../components/figures/FigureImage';
+import { FigureRemoved } from '../components/figures/FigureImage';
+import AdjustableImage from '../components/figures/AdjustableImage';
 import TemplateMenu from '../components/plan/TemplateMenu';
 import AgentPanel from '../components/plan/AgentPanel';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
@@ -320,8 +321,10 @@ function FigureSection({ content, onField }) {
         className={`${inputBase} text-[15px] text-slate mb-4 leading-relaxed`}
         placeholder="Introduction" />
       <figure className="m-0 flex flex-col items-center gap-2">
-        <FigureImage figureId={content.figure_id} alt={content.caption || content.title}
-          className="max-w-full max-h-[520px] object-contain border border-[#E2E8F0] rounded-md" />
+        {content.figure_id
+          ? <AdjustableImage key={content.figure_id} src={figures.imageUrl(content.figure_id)} alt={content.caption || content.title}
+              value={content.image} onChange={(v) => onField('image', v)} fallback={<FigureRemoved />} />
+          : <FigureRemoved />}
         <figcaption className="w-full">
           <AutoTextarea value={content.caption || ''}
             onChange={(val) => onField('caption', val)}
@@ -352,8 +355,8 @@ function DiagramSection({ content, genId, templateId, onField, onApplyCode }) {
         placeholder="Introduction" />
       <figure className="m-0 flex flex-col items-center gap-2">
         {content.diagram_file
-          ? <img src={generations.diagramUrl(genId, content.diagram_file, templateId)} alt={content.caption || content.title}
-              className="max-w-full max-h-[520px] object-contain border border-[#E2E8F0] rounded-md" />
+          ? <AdjustableImage src={generations.diagramUrl(genId, content.diagram_file, templateId)} alt={content.caption || content.title}
+              value={content.image} onChange={(v) => onField('image', v)} />
           : <p className="hint">Diagram not rendered yet.</p>}
         <figcaption className="w-full">
           <AutoTextarea value={content.caption || ''}
