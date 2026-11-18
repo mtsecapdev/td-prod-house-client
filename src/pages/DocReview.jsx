@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Send, Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink, Loader2, Pencil } from 'lucide-react';
+import { Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink, Loader2, Pencil } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
-import ItemTools from '../components/plan/ItemTools';
+import ItemPanel from '../components/plan/ItemPanel';
+import AddItemForm from '../components/plan/AddItemForm';
+import TemplateMenu from '../components/plan/TemplateMenu';
 import AgentPanel from '../components/plan/AgentPanel';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
 import { useTemplates, findTemplate, templateStyle } from '../components/plan/templates';
@@ -347,15 +349,14 @@ export default function DocReview() {
   const [activeSection, setActiveSection] = useState(0);
   const [chatOpen, setChatOpen] = useState(true);
   const [panelTab, setPanelTab] = useState('item'); // 'item' | 'deck' (agent)
-  const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState([]);
-  const [chatLoading, setChatLoading] = useState(false);
+  const [addAfter, setAddAfter] = useState(null); // index the "+" was pressed after, or null
   const [saving, setSaving] = useState(false);
   const [savedToLibrary, setSavedToLibrary] = useState(false);
   const [savingToLibrary, setSavingToLibrary] = useState(false);
   const [openingWordCraft, setOpeningWordCraft] = useState(false);
   const saveTimer = useRef(null);
   const undoStack = useRef({});
+  const [stackSizes, setStackSizes] = useState({});
   const redoStack = useRef({});
   const sectionRefs = useRef([]);
   // Sections that are not written yet are written now and appear one by one.
@@ -387,6 +388,11 @@ export default function DocReview() {
     }, 800);
   }, []);
 
+  // The stacks live in refs; their sizes are mirrored in state so the undo/redo buttons render from state.
+  function syncStacks(idx) {
+    setStackSizes((sizes) => ({ ...sizes, [idx]: { undo: getUndoStack(idx).length, redo: getRedoStack(idx).length } }));
+  }
+
   function getUndoStack(idx) { if (!undoStack.current[idx]) undoStack.current[idx] = []; return undoStack.current[idx]; }
   function getRedoStack(idx) { if (!redoStack.current[idx]) redoStack.current[idx] = []; return redoStack.current[idx]; }
 
@@ -397,6 +403,7 @@ export default function DocReview() {
     const prev = stack.pop();
     const current = gen.outline.sections[activeSection]?.content;
     if (current) getRedoStack(activeSection).push(JSON.parse(JSON.stringify(current)));
+    syncStacks(activeSection);
     const updatedSections = gen.outline.sections.map((s, i) =>
       i === activeSection ? { ...s, content: prev } : s,
     );
@@ -412,6 +419,7 @@ export default function DocReview() {
     const next = stack.pop();
     const current = gen.outline.sections[activeSection]?.content;
     if (current) getUndoStack(activeSection).push(JSON.parse(JSON.stringify(current)));
+    syncStacks(activeSection);
     const updatedSections = gen.outline.sections.map((s, i) =>
       i === activeSection ? { ...s, content: next } : s,
     );
@@ -420,8 +428,8 @@ export default function DocReview() {
     saveOutline(updatedGen);
   }
 
-  const canUndo = gen && getUndoStack(activeSection).length > 0;
-  const canRedo = gen && getRedoStack(activeSection).length > 0;
+  const canUndo = (stackSizes[activeSection]?.undo || 0) > 0;
+  const canRedo = (stackSizes[activeSection]?.redo || 0) > 0;
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -446,6 +454,7 @@ export default function DocReview() {
     if (currentContent) {
       getUndoStack(secIdx).push(JSON.parse(JSON.stringify(currentContent)));
       getRedoStack(secIdx).length = 0;
+      syncStacks(secIdx);
     }
     setGen(updatedGen);
     saveOutline(updatedGen);
@@ -551,23 +560,7 @@ export default function DocReview() {
   }
 
   // Chat
-  async function handleEditSubmit(e) {
-    e.preventDefault();
-    if (!chatInput.trim() || chatLoading) return;
-    const instruction = chatInput;
-    setChatInput('');
-    setChatHistory((h) => [...h, { role: 'user', content: instruction }]);
-    setChatLoading(true);
-    try {
-      await generations.editSection(id, activeSection, instruction, chatHistory);
-      setChatHistory((h) => [...h, { role: 'assistant', content: 'Section updated.' }]);
-      const refreshed = await generations.get(id);
-      setGen(refreshed.generation);
-    } catch (err) {
-      setChatHistory((h) => [...h, { role: 'assistant', content: `Error: ${err.message}` }]);
-    }
-    setChatLoading(false);
-  }
+
 
   // Switching template is instant: it only restyles the preview and the next download.
   async function changeTemplate(templateId) {
@@ -588,7 +581,7 @@ export default function DocReview() {
   async function handleSaveToLibrary() {
     setSavingToLibrary(true);
     try {
-      await assets.save(Number(id), gen.brief?.topic);
+      await assets.save(Number(id), gen.name);
       setSavedToLibrary(true);
     } catch (err) {
       console.error('Save to library failed:', err);
@@ -598,7 +591,7 @@ export default function DocReview() {
 
   function scrollToSection(i) {
     setActiveSection(i);
-    setChatHistory([]);
+    setAddAfter(null);
     sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -651,7 +644,7 @@ export default function DocReview() {
       <div className="shrink-0 px-4 py-2 border-b border-border bg-white flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <h1 className="font-heading text-[18px] leading-6 font-bold tracking-tight m-0 truncate max-w-[200px] lg:max-w-none">
-            {gen.brief?.topic || 'Training document'}
+            {gen.name || 'Training document'}
           </h1>
           <span className="chip-muted text-[11px]">Draft</span>
           {saving && <span className="text-xs text-slate animate-pulse">Saving...</span>}
@@ -668,12 +661,6 @@ export default function DocReview() {
           <Link to={`/create/doc/${id}/outline`} className="text-[12px] text-slate flex items-center gap-1 no-underline hover:text-navy">
             <Pencil size={11} />Outline
           </Link>
-          {templateData.templates.length > 0 && (
-            <select className="field py-0.5 px-1.5 text-[12px] w-auto" aria-label="Template" title="Template"
-              value={template?.id || ''} onChange={(e) => changeTemplate(e.target.value)}>
-              {templateData.templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          )}
           <span className="text-[12px] text-slate hidden sm:inline">{sections.length} sections</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -686,6 +673,7 @@ export default function DocReview() {
             <Redo2 size={15} />
           </button>
           <div className="w-px h-4 bg-border mx-0.5" />
+          <TemplateMenu templates={templateData.templates} value={template?.id} onChange={changeTemplate} />
           <button type="button" onClick={handleOpenWordCraft}
             disabled={openingWordCraft}
             className="btn-outline text-[12px] gap-1 py-1 px-2 hidden sm:flex">
@@ -716,7 +704,7 @@ export default function DocReview() {
         <nav className="w-[100px] lg:w-[200px] shrink-0 border-r border-border bg-white overflow-y-auto py-2 px-1.5 lg:px-2">
           <ol className="list-none m-0 p-0 flex flex-col gap-1">
             {sections.map((s, i) => (
-              <li key={i}>
+              <li key={i} className="group/item relative">
                 <button type="button" onClick={() => scrollToSection(i)}
                   className={`w-full flex flex-col lg:flex-row gap-1 lg:gap-2 items-center min-h-[40px] px-1 lg:px-1.5 py-1 rounded-lg text-left cursor-pointer border-2 transition-all ${
                     i === activeSection ? 'border-navy bg-[#F5F8FC] shadow-sm' : 'border-transparent hover:bg-[#F0F4F8] hover:border-[#E2E8F0]'
@@ -731,6 +719,13 @@ export default function DocReview() {
                     </span>
                   </div>
                 </button>
+                {/* Add a section here: shown between sections on hover */}
+                <button type="button" onClick={() => { setAddAfter(i); setChatOpen(true); setPanelTab('item'); }}
+                  title={`Add a section after section ${i + 1}`}
+                  className={`absolute left-1/2 -translate-x-1/2 -bottom-2.5 z-10 w-5 h-5 rounded-full bg-white border border-border text-slate hover:text-navy hover:border-navy cursor-pointer flex items-center justify-center ${
+                    addAfter === i ? 'opacity-100 border-navy text-navy' : 'opacity-0 group-hover/item:opacity-100'}`}>
+                  <Plus size={12} />
+                </button>
               </li>
             ))}
           </ol>
@@ -743,7 +738,7 @@ export default function DocReview() {
               {sections.map((s, i) => (
                 <div key={i}
                   ref={(el) => (sectionRefs.current[i] = el)}
-                  onClick={() => { if (i !== activeSection) { setActiveSection(i); setChatHistory([]); } }}
+                  onClick={() => { if (i !== activeSection) { setActiveSection(i); setAddAfter(null); } }}
                   className={`transition-colors rounded-md cursor-pointer -mx-3 px-3 ${
                     i === activeSection ? 'bg-[#F0F4F8] ring-1 ring-navy/10' : ''
                   }`}>
@@ -774,31 +769,17 @@ export default function DocReview() {
             </div>
             {panelTab === 'deck' ? (
               <AgentPanel type="doc" genId={id} gen={gen} setGen={setGen} />
-            ) : (
-              <>
-              <ItemTools key={activeSection} type="doc" genId={id} index={activeSection} item={sections[activeSection]}
-                onUpdated={async (result) => {
+            ) : addAfter !== null ? (
+              <AddItemForm type="doc" genId={id} after={addAfter} onCancel={() => setAddAfter(null)}
+                onAdded={async (index) => {
                   const r = await generations.get(id);
                   setGen(r.generation);
-                  if (result?.index !== undefined) setActiveSection(result.index);
+                  setActiveSection(index);
+                  setAddAfter(null);
                 }} />
-              <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
-                {chatHistory.length === 0 && <p className="hint text-[13px]">Tell me what to change in this section.</p>}
-                {chatHistory.map((msg, i) => (
-                  <div key={i} className={`text-[13px] px-3 py-2 rounded-lg ${
-                    msg.role === 'user' ? 'bg-navy text-white self-end max-w-[85%]' : 'bg-[#F1F5F9] self-start max-w-[85%]'
-                  }`}>{msg.content}</div>
-                ))}
-                {chatLoading && <p className="hint text-[13px] animate-pulse">Thinking...</p>}
-              </div>
-              <form onSubmit={handleEditSubmit} className="shrink-0 flex gap-2 px-3 py-2.5 border-t border-border">
-                <input className="field flex-1 text-[13px]" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="e.g. Add more detail" disabled={chatLoading} />
-                <button type="submit" disabled={chatLoading || !chatInput.trim()} className="btn-primary px-2.5 py-1.5">
-                  <Send size={14} />
-                </button>
-              </form>
-              </>
+            ) : (
+              <ItemPanel key={activeSection} type="doc" genId={id} index={activeSection} item={sections[activeSection]}
+                onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }} />
             )}
           </div>
         )}

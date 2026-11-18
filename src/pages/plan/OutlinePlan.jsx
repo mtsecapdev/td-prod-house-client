@@ -6,8 +6,6 @@ import {
 import { generations } from '../../services/api';
 import { KIND, TEXT_AMOUNTS, typeLabel } from '../../components/plan/kindConfig';
 import JobCard from '../../components/plan/JobCard';
-import TemplatePicker from '../../components/plan/TemplatePicker';
-import { useTemplates } from '../../components/plan/templates';
 import { usePlanGeneration, jobRunning, jobFailed } from '../../components/plan/usePlanGeneration';
 
 const SAVE_DELAY_MS = 700;
@@ -196,7 +194,6 @@ export default function OutlinePlan() {
   const [brief, setBrief] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const templateData = useTemplates();
 
   const { gen, setGen, expectJob } = usePlanGeneration(id, {
     onJobDone: (g) => { setItems(g.outline?.[kind.listKey] || []); setBrief(g.brief || {}); },
@@ -325,13 +322,6 @@ export default function OutlinePlan() {
 
           <aside className="card p-5 flex flex-col gap-5 lg:sticky lg:top-4">
             <h2 className="font-heading text-[16px] font-semibold m-0">Settings</h2>
-            {templateData.templates.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="label">Template</span>
-                <TemplatePicker templates={templateData.templates} value={brief.template || templateData.default}
-                  onChange={(v) => setBriefField('template', v)} />
-              </div>
-            )}
             <div className="flex flex-col gap-2">
               <span className="label">Text amount</span>
               <Pills options={TEXT_AMOUNTS} value={brief.text_amount || 'concise'} onChange={(v) => setBriefField('text_amount', v)} />

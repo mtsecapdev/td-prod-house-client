@@ -152,7 +152,7 @@ export default function Home() {
                 <Link key={g.id} to={url} className="card px-5 py-4 flex items-center gap-4 no-underline text-ink hover:shadow-raised hover:border-[#CBD5E1] transition-all">
                   <Icon size={18} className="text-navy shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-medium truncate">{g.brief?.topic || 'Untitled'}</p>
+                    <p className="text-[15px] font-medium truncate">{g.name || g.brief?.topic || 'Untitled'}</p>
                     <p className="text-[13px] text-slate mt-0.5">
                       {g.type === 'deck' ? 'Slide deck' : g.type === 'image' ? 'Image' : 'Training document'}
                       {' · '}

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Send, ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare, Loader2, Pencil } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare, Loader2, Pencil } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
-import ItemTools from '../components/plan/ItemTools';
+import ItemPanel from '../components/plan/ItemPanel';
+import AddItemForm from '../components/plan/AddItemForm';
+import TemplateMenu from '../components/plan/TemplateMenu';
 import AgentPanel from '../components/plan/AgentPanel';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
 import { useTemplates, findTemplate, templateStyle } from '../components/plan/templates';
@@ -855,9 +857,7 @@ export default function Review() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [chatOpen, setChatOpen] = useState(true);
   const [panelTab, setPanelTab] = useState('item'); // 'item' | 'deck' (agent)
-  const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState([]);
-  const [chatLoading, setChatLoading] = useState(false);
+  const [addAfter, setAddAfter] = useState(null); // index the "+" was pressed after (-1 = start), or null
   const [saving, setSaving] = useState(false);
   const [savedToLibrary, setSavedToLibrary] = useState(false);
   const [savingToLibrary, setSavingToLibrary] = useState(false);
@@ -866,6 +866,7 @@ export default function Review() {
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const saveTimer = useRef(null);
   const undoStack = useRef({});
+  const [stackSizes, setStackSizes] = useState({});
   const redoStack = useRef({});
   // Slides that are not written yet are written now and appear one by one.
   const live = useLiveWrite(id, gen, setGen, 'slides');
@@ -896,6 +897,11 @@ export default function Review() {
     }, 800);
   }, []);
 
+  // The stacks live in refs; their sizes are mirrored in state so the undo/redo buttons render from state.
+  function syncStacks(idx) {
+    setStackSizes((sizes) => ({ ...sizes, [idx]: { undo: getUndoStack(idx).length, redo: getRedoStack(idx).length } }));
+  }
+
   function getUndoStack(idx) { if (!undoStack.current[idx]) undoStack.current[idx] = []; return undoStack.current[idx]; }
   function getRedoStack(idx) { if (!redoStack.current[idx]) redoStack.current[idx] = []; return redoStack.current[idx]; }
 
@@ -906,6 +912,7 @@ export default function Review() {
     const prev = stack.pop();
     const current = gen.outline.slides[activeSlide]?.content;
     if (current) getRedoStack(activeSlide).push(JSON.parse(JSON.stringify(current)));
+    syncStacks(activeSlide);
     const updatedSlides = gen.outline.slides.map((s, i) =>
       i === activeSlide ? { ...s, content: prev, title: prev.title || s.title } : s,
     );
@@ -921,6 +928,7 @@ export default function Review() {
     const next = stack.pop();
     const current = gen.outline.slides[activeSlide]?.content;
     if (current) getUndoStack(activeSlide).push(JSON.parse(JSON.stringify(current)));
+    syncStacks(activeSlide);
     const updatedSlides = gen.outline.slides.map((s, i) =>
       i === activeSlide ? { ...s, content: next, title: next.title || s.title } : s,
     );
@@ -929,8 +937,8 @@ export default function Review() {
     saveOutline(updatedGen);
   }
 
-  const canUndo = gen && getUndoStack(activeSlide).length > 0;
-  const canRedo = gen && getRedoStack(activeSlide).length > 0;
+  const canUndo = (stackSizes[activeSlide]?.undo || 0) > 0;
+  const canRedo = (stackSizes[activeSlide]?.redo || 0) > 0;
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -958,6 +966,7 @@ export default function Review() {
     if (currentContent) {
       getUndoStack(activeSlide).push(JSON.parse(JSON.stringify(currentContent)));
       getRedoStack(activeSlide).length = 0;
+      syncStacks(activeSlide);
     }
     setGen(updatedGen);
     saveOutline(updatedGen);
@@ -1136,24 +1145,7 @@ export default function Review() {
     end: () => { setDragIdx(null); setDragOverIdx(null); },
   };
 
-  // Chat
-  async function handleEditSubmit(e) {
-    e.preventDefault();
-    if (!chatInput.trim() || chatLoading) return;
-    const instruction = chatInput;
-    setChatInput('');
-    setChatHistory((h) => [...h, { role: 'user', content: instruction }]);
-    setChatLoading(true);
-    try {
-      await generations.editSlide(id, activeSlide, instruction, chatHistory);
-      setChatHistory((h) => [...h, { role: 'assistant', content: 'Slide updated.' }]);
-      const refreshed = await generations.get(id);
-      setGen(refreshed.generation);
-    } catch (err) {
-      setChatHistory((h) => [...h, { role: 'assistant', content: `Error: ${err.message}` }]);
-    }
-    setChatLoading(false);
-  }
+
 
   function renderSlide() {
     if (!content) {
@@ -1232,7 +1224,7 @@ export default function Review() {
   async function handleSaveToLibrary() {
     setSavingToLibrary(true);
     try {
-      await assets.save(Number(id), gen.brief?.topic);
+      await assets.save(Number(id), gen.name);
       setSavedToLibrary(true);
     } catch (err) {
       console.error('Save to library failed:', err);
@@ -1248,7 +1240,7 @@ export default function Review() {
       <div className="shrink-0 px-4 py-2 border-b border-border bg-white flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <h1 className="font-heading text-[18px] leading-6 font-bold tracking-tight m-0 truncate max-w-[200px] lg:max-w-none">
-            {gen.brief?.topic || 'Slide deck'}
+            {gen.name || 'Slide deck'}
           </h1>
           <span className="chip-muted text-[11px]">Draft</span>
           {saving && <span className="text-xs text-slate animate-pulse">Saving...</span>}
@@ -1265,12 +1257,6 @@ export default function Review() {
           <Link to={`/create/deck/${id}/outline`} className="text-[12px] text-slate flex items-center gap-1 no-underline hover:text-navy">
             <Pencil size={11} />Outline
           </Link>
-          {templateData.templates.length > 0 && (
-            <select className="field py-0.5 px-1.5 text-[12px] w-auto" aria-label="Template" title="Template"
-              value={template?.id || ''} onChange={(e) => changeTemplate(e.target.value)}>
-              {templateData.templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          )}
           <span className="text-[12px] text-slate hidden sm:inline">{slides.length} slides</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -1283,6 +1269,7 @@ export default function Review() {
             <Redo2 size={15} />
           </button>
           <div className="w-px h-4 bg-border mx-0.5" />
+          <TemplateMenu templates={templateData.templates} value={template?.id} onChange={changeTemplate} />
           <button type="button" onClick={handleOpenDeckCraft}
             disabled={openingDeckCraft}
             className="btn-outline text-[12px] gap-1 py-1 px-2 hidden sm:flex">
@@ -1313,8 +1300,8 @@ export default function Review() {
         <nav className="w-[100px] lg:w-[200px] shrink-0 border-r border-border bg-white overflow-y-auto py-2 px-1.5 lg:px-2">
           <ol className="list-none m-0 p-0 flex flex-col gap-1">
             {slides.map((s, i) => (
-              <li key={i}>
-                <button type="button" onClick={() => { setActiveSlide(i); setChatHistory([]); }}
+              <li key={i} className="group/item relative">
+                <button type="button" onClick={() => { setActiveSlide(i); setAddAfter(null); }}
                   className={`w-full flex flex-col lg:flex-row gap-1 lg:gap-2 items-center min-h-[40px] px-1 lg:px-1.5 py-1 rounded-lg text-left cursor-pointer border-2 transition-all ${
                     i === activeSlide ? 'border-navy bg-[#F5F8FC] shadow-sm' : 'border-transparent hover:bg-[#F0F4F8] hover:border-[#E2E8F0]'
                   }`}>
@@ -1327,6 +1314,13 @@ export default function Review() {
                       <span className="hidden lg:inline"> &middot; {LAYOUT_LABELS[s.layout] || 'Bullets'}</span>
                     </span>
                   </div>
+                </button>
+                {/* Add a slide here: shown between slides on hover */}
+                <button type="button" onClick={() => { setAddAfter(i); setChatOpen(true); setPanelTab('item'); }}
+                  title={`Add a slide after slide ${i + 1}`}
+                  className={`absolute left-1/2 -translate-x-1/2 -bottom-2.5 z-10 w-5 h-5 rounded-full bg-white border border-border text-slate hover:text-navy hover:border-navy cursor-pointer flex items-center justify-center ${
+                    addAfter === i ? 'opacity-100 border-navy text-navy' : 'opacity-0 group-hover/item:opacity-100'}`}>
+                  <Plus size={12} />
                 </button>
               </li>
             ))}
@@ -1384,31 +1378,17 @@ export default function Review() {
             </div>
             {panelTab === 'deck' ? (
               <AgentPanel type="deck" genId={id} gen={gen} setGen={setGen} />
-            ) : (
-              <>
-              <ItemTools key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
-                onUpdated={async (result) => {
+            ) : addAfter !== null ? (
+              <AddItemForm type="deck" genId={id} after={addAfter} onCancel={() => setAddAfter(null)}
+                onAdded={async (index) => {
                   const r = await generations.get(id);
                   setGen(r.generation);
-                  if (result?.index !== undefined) setActiveSlide(result.index);
+                  setActiveSlide(index);
+                  setAddAfter(null);
                 }} />
-              <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
-                {chatHistory.length === 0 && <p className="hint text-[13px]">Tell me what to change on this slide.</p>}
-                {chatHistory.map((msg, i) => (
-                  <div key={i} className={`text-[13px] px-3 py-2 rounded-lg ${
-                    msg.role === 'user' ? 'bg-navy text-white self-end max-w-[85%]' : 'bg-[#F1F5F9] self-start max-w-[85%]'
-                  }`}>{msg.content}</div>
-                ))}
-                {chatLoading && <p className="hint text-[13px] animate-pulse">Thinking...</p>}
-              </div>
-              <form onSubmit={handleEditSubmit} className="shrink-0 flex gap-2 px-3 py-2.5 border-t border-border">
-                <input className="field flex-1 text-[13px]" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="e.g. Make the title shorter" disabled={chatLoading} />
-                <button type="submit" disabled={chatLoading || !chatInput.trim()} className="btn-primary px-2.5 py-1.5">
-                  <Send size={14} />
-                </button>
-              </form>
-              </>
+            ) : (
+              <ItemPanel key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
+                onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }} />
             )}
           </div>
         )}
