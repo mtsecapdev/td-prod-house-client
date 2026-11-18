@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare, Loader2, Pencil } from 'lucide-react';
-import { figures, generations, assets } from '../services/api';
+import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
-import { FigureRemoved } from '../components/figures/FigureImage';
+import Pictures from '../components/figures/Pictures';
+import { newPicture } from '../components/figures/pictureLayout';
 import AdjustableImage from '../components/figures/AdjustableImage';
 import ItemPanel from '../components/plan/ItemPanel';
 import AddItemForm from '../components/plan/AddItemForm';
@@ -295,6 +296,7 @@ function DiagramSlide({ content, genId, templateId, onField }) {
 
 
 function FigureSlide({ content, onField }) {
+  // Title only: the figure and its caption are the slide's first picture.
   return (
     <div className="flex flex-col gap-2 h-full">
       <div className="flex items-center gap-2">
@@ -304,16 +306,7 @@ function FigureSlide({ content, onField }) {
           className={`${inputBase} font-heading text-[18px] font-bold text-navy`}
           placeholder="Slide title" />
       </div>
-      <div className="flex-1 min-h-0 flex items-center justify-center">
-        {content.figure_id
-          ? <AdjustableImage key={content.figure_id} mode="free" src={figures.imageUrl(content.figure_id)} alt={content.caption || content.title}
-              value={content.image} onChange={(v) => onField('image', v)} fallback={<FigureRemoved />} />
-          : <FigureRemoved />}
-      </div>
-      <input type="text" value={content.caption || ''}
-        onChange={(e) => onField('caption', e.target.value)}
-        className={`${inputBase} text-[12px] italic text-slate text-center`}
-        placeholder="Caption" />
+      {/* The figure itself is one of the slide's pictures (drawn over the slide by <Pictures>). */}
     </div>
   );
 }
@@ -1368,7 +1361,14 @@ export default function Review() {
         <div className="flex-1 min-w-0 flex flex-col bg-[#E8ECF0] overflow-hidden">
           <SlideFitContainer>
             <article className="rounded-lg shadow-lg overflow-hidden relative bg-white w-full h-full" style={templateStyle(template)}>
-              <SlideFrame noPad={layout === 'title' || layout === 'closing' || layout === 'section_divider'}>{renderSlide()}</SlideFrame>
+              <SlideFrame noPad={layout === 'title' || layout === 'closing' || layout === 'section_divider'}>
+                {renderSlide()}
+                {content && (
+                  <Pictures key={activeSlide} slide layout={layout} pictures={content.pictures || []}
+                    documentIds={gen.source_document_ids || []}
+                    onChange={(list) => updateSlideField('pictures', list.length ? list : undefined)} />
+                )}
+              </SlideFrame>
             </article>
           </SlideFitContainer>
 
@@ -1427,7 +1427,8 @@ export default function Review() {
               <ItemPanel key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
                 documentIds={gen.source_document_ids || []}
                 onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }}
-                onAdded={async (index) => { const r = await generations.get(id); setGen(r.generation); setActiveSlide(index); }} />
+                onAddFigure={(f) => updateSlideField('pictures', [...(content?.pictures || []),
+                  newPicture(f, { slide: true, layout, existing: (content?.pictures || []).length })])} />
             )}
           </div>
         )}

@@ -123,9 +123,9 @@ export const generations = {
   agentApply: (id, steps) =>
     request(`/generations/${id}/agent/apply`, { method: 'POST', body: JSON.stringify({ steps }) }),
   agentUndo: (id) => request(`/generations/${id}/agent/undo`, { method: 'POST' }),
-  // Puts a document figure in as a Figure slide/section; mode 'replace' | 'after'; no index = before the closing.
-  addFigure: (id, figureId, { index, mode = 'after' } = {}) =>
-    request(`/generations/${id}/figures`, { method: 'POST', body: JSON.stringify({ figureId, index, mode }) }),
+  // Adds a document figure as a new Figure slide/section, written around it; no index = before the closing.
+  addFigure: (id, figureId, { index } = {}) =>
+    request(`/generations/${id}/figures`, { method: 'POST', body: JSON.stringify({ figureId, index }) }),
   // "Add with AI": plans and writes a new slide/section after index `after`.
   addItem: (type, id, after, description) =>
     request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}`, {

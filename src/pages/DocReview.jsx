@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink, Loader2, Pencil } from 'lucide-react';
-import { figures, generations, assets } from '../services/api';
+import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import ItemPanel from '../components/plan/ItemPanel';
 import AddItemForm from '../components/plan/AddItemForm';
-import { FigureRemoved } from '../components/figures/FigureImage';
+import Pictures from '../components/figures/Pictures';
+import { newPicture } from '../components/figures/pictureLayout';
 import AdjustableImage from '../components/figures/AdjustableImage';
 import TemplateMenu from '../components/plan/TemplateMenu';
 import AgentPanel from '../components/plan/AgentPanel';
@@ -309,7 +310,8 @@ function SummarySection({ content, onField, onRecapPoint, onAddRecapPoint, onRem
   );
 }
 
-function FigureSection({ content, onField }) {
+// Title and introduction; the figure (the section's first picture) comes next, then the notes.
+function FigureSection({ content, onField, children }) {
   return (
     <div className="py-6">
       <AutoTextarea value={content.title}
@@ -320,18 +322,7 @@ function FigureSection({ content, onField }) {
         onChange={(val) => onField('introduction', val)}
         className={`${inputBase} text-[15px] text-slate mb-4 leading-relaxed`}
         placeholder="Introduction" />
-      <figure className="m-0 flex flex-col items-center gap-2">
-        {content.figure_id
-          ? <AdjustableImage key={content.figure_id} src={figures.imageUrl(content.figure_id)} alt={content.caption || content.title}
-              value={content.image} onChange={(v) => onField('image', v)} fallback={<FigureRemoved />} />
-          : <FigureRemoved />}
-        <figcaption className="w-full">
-          <AutoTextarea value={content.caption || ''}
-            onChange={(val) => onField('caption', val)}
-            className={`${inputBase} text-[13px] italic text-slate text-center`}
-            placeholder="Figure caption" />
-        </figcaption>
-      </figure>
+      {children}
       {content.notes && (
         <AutoTextarea value={content.notes}
           onChange={(val) => onField('notes', val)}
@@ -630,7 +621,19 @@ export default function DocReview() {
     sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  // A section with the pictures placed on it: after its content, or inside a Figure section.
   function renderSectionAt(secIdx) {
+    const sec = sections[secIdx];
+    if (!sec?.content) return renderSectionBody(secIdx);
+    const pics = (
+      <Pictures pictures={sec.content.pictures || []} documentIds={gen.source_document_ids || []}
+        onChange={(list) => updateFieldAt(secIdx, 'pictures', list.length ? list : undefined)} />
+    );
+    if (sec.section_type === 'figure') return renderSectionBody(secIdx, pics);
+    return <>{renderSectionBody(secIdx)}{pics}</>;
+  }
+
+  function renderSectionBody(secIdx, pictures = null) {
     const sec = sections[secIdx];
     const c = sec?.content;
     if (!c) {
@@ -665,7 +668,7 @@ export default function DocReview() {
         return <DiagramSection content={c} genId={id} templateId={template?.id} onField={h.onField}
           onApplyCode={(code, key) => updateFieldsAt(secIdx, { mermaid_code: code, diagram_file: key })} />;
       case 'figure':
-        return <FigureSection content={c} onField={h.onField} />;
+        return <FigureSection content={c} onField={h.onField}>{pictures}</FigureSection>;
       case 'summary':
         return <SummarySection content={c} onField={h.onField}
           onRecapPoint={h.onRecapPoint} onAddRecapPoint={h.onAddRecapPoint} onRemoveRecapPoint={h.onRemoveRecapPoint} />;
@@ -818,7 +821,7 @@ export default function DocReview() {
               <ItemPanel key={activeSection} type="doc" genId={id} index={activeSection} item={sections[activeSection]}
                 documentIds={gen.source_document_ids || []}
                 onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }}
-                onAdded={async (index) => { const r = await generations.get(id); setGen(r.generation); setActiveSection(index); }} />
+                onAddFigure={(f) => updateFieldAt(activeSection, 'pictures', [...(sections[activeSection]?.content?.pictures || []), newPicture(f)])} />
             )}
           </div>
         )}

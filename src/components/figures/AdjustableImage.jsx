@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, Crop, RotateCcw, Check, X } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Crop, RotateCcw, Check, X, Replace, Trash2 } from 'lucide-react';
 
 const NO_CROP = { l: 0, t: 0, r: 0, b: 0 };
 const MIN_VISIBLE = 0.05; // a crop keeps at least 5% of each dimension
@@ -43,12 +43,17 @@ function handlePoint(h, r) {
  *
  * mode 'free' (slides): placed anywhere on the slide; saved as fractions of the slide { x, y, w, crop }, which
  *   the PowerPoint renderer uses directly. It must sit inside the slide with no positioned ancestor in between,
- *   so its layer covers the whole slide; its in-flow placeholder marks the default area.
+ *   so its layer covers the whole slide. Unplaced, it fits defaultBox ([x, y, w, h] fractions of the slide) or,
+ *   without one, the area its in-flow placeholder takes in the layout.
  * mode 'inline' (documents): sits in the text column; saved as { w (fraction of the column), align, crop }.
  *
- * Each finished drag or crop is one onChange (one undo step).
+ * With onCaption, the caption is attached under the picture and moves and resizes with it.
+ * Each finished drag, crop or caption edit is one onChange (one undo step).
  */
-export default function AdjustableImage({ src, alt, value, onChange, mode = 'inline', maxHeight = 520, fallback = null }) {
+export default function AdjustableImage({
+  src, alt, value, onChange, mode = 'inline', maxHeight = 520, fallback = null, defaultBox = null,
+  caption, onCaption, onReplace, onDelete,
+}) {
   const free = mode === 'free';
   const placeholderRef = useRef(null);
   const layerRef = useRef(null);
@@ -73,10 +78,10 @@ export default function AdjustableImage({ src, alt, value, onChange, mode = 'inl
   useLayoutEffect(() => {
     const layer = layerRef.current;
     const ph = placeholderRef.current;
-    if (!layer || !ph) return undefined;
+    if (!layer) return undefined;
     const measure = () => {
       const lr = layer.getBoundingClientRect();
-      const pr = ph.getBoundingClientRect();
+      const pr = ph ? ph.getBoundingClientRect() : lr;
       const k = lr.width / (layer.clientWidth || 1) || 1;
       setDims({
         W: layer.clientWidth, H: layer.clientHeight,
@@ -86,7 +91,7 @@ export default function AdjustableImage({ src, alt, value, onChange, mode = 'inl
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(layer);
-    observer.observe(ph);
+    if (ph) observer.observe(ph);
     return () => observer.disconnect();
   }, [natural]);
 
@@ -105,6 +110,8 @@ export default function AdjustableImage({ src, alt, value, onChange, mode = 'inl
         if (cropping) { setCropping(false); setDraft(null); } else setSelected(false);
       }
       if (e.key === 'Enter' && cropping) { e.preventDefault(); finishCrop(); }
+      const typing = ['INPUT', 'TEXTAREA'].includes(e.target?.tagName) || e.target?.isContentEditable;
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !cropping && !typing && onDelete) { e.preventDefault(); onDelete(); }
     }
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
@@ -122,6 +129,9 @@ export default function AdjustableImage({ src, alt, value, onChange, mode = 'inl
   const v = value || {};
   const align = ['left', 'center', 'right'].includes(v.align) ? v.align : 'center';
   const ready = Boolean(natural && dims && dims.W > 0);
+  const area = ready && defaultBox
+    ? { x: defaultBox[0] * dims.W, y: defaultBox[1] * dims.H, w: defaultBox[2] * dims.W, h: defaultBox[3] * dims.H }
+    : dims?.area;
   const visAspect = (c) => (natural.h * (1 - c.t - c.b)) / (natural.w * (1 - c.l - c.r));
 
   // The saved picture as layout-px geometry { x, y, w, crop }; unset means "fit the default area".
@@ -132,8 +142,8 @@ export default function AdjustableImage({ src, alt, value, onChange, mode = 'inl
       if (v.w != null && v.x != null && v.y != null) {
         return { x: Number(v.x) * dims.W, y: Number(v.y) * dims.H, w: Number(v.w) * dims.W, crop };
       }
-      const f = fit(vis.w, vis.h, dims.area.w, dims.area.h);
-      return { x: dims.area.x + (dims.area.w - f.w) / 2, y: dims.area.y + (dims.area.h - f.h) / 2, w: f.w, crop };
+      const f = fit(vis.w, vis.h, area.w, area.h);
+      return { x: area.x + (area.w - f.w) / 2, y: area.y + (area.h - f.h) / 2, w: f.w, crop };
     }
     const w = v.w != null ? Number(v.w) * dims.W : fit(vis.w, vis.h, dims.W, maxHeight).w;
     return { x: 0, y: 0, w: clamp(w, MIN_SIZE, dims.W), crop };
@@ -197,7 +207,7 @@ export default function AdjustableImage({ src, alt, value, onChange, mode = 'inl
       const snap = SNAP / k;
       const guide = { v: null, h: null };
       if (Math.abs(x + sf.w / 2 - dims.W / 2) < snap) { x = dims.W / 2 - sf.w / 2; guide.v = dims.W / 2; }
-      for (const cy of [dims.area.y + dims.area.h / 2, dims.H / 2]) {
+      for (const cy of [area.y + area.h / 2, dims.H / 2]) {
         if (Math.abs(y + sf.h / 2 - cy) < snap) { y = cy - sf.h / 2; guide.h = cy; break; }
       }
       setGuides(guide);
@@ -306,12 +316,20 @@ export default function AdjustableImage({ src, alt, value, onChange, mode = 'inl
             );
           })}
 
+          {free && onCaption && (
+            // Attached caption: same width as the picture, just under it, 12pt as on the PowerPoint slide.
+            <div className="absolute pointer-events-auto" style={{ left: frame.x, top: frame.y + frame.h + dims.W * 0.0045, width: frame.w }}>
+              <CaptionField value={caption} onCommit={onCaption} align="center" fontSize={dims.W / 80} />
+            </div>
+          )}
+
           {selected && (
             <Toolbar
               left={frame.x + frame.w / 2}
               top={free && frame.y < sp(56) ? frame.y + frame.h : frame.y}
               below={free && frame.y < sp(56)}
               k={k} free={free} cropping={cropping} align={align} customised={value != null}
+              onReplace={onReplace} onDelete={onDelete}
               onCrop={startCrop} onDone={finishCrop} onResetCrop={resetCrop}
               onCancel={() => { setCropping(false); setDraft(null); }}
               onAlign={(a) => onChange({ ...(v.w != null ? { w: v.w } : {}), crop: cleanCrop(v.crop), align: a })}
@@ -323,17 +341,47 @@ export default function AdjustableImage({ src, alt, value, onChange, mode = 'inl
     </div>
   );
 
-  return free ? (
-    <>
-      <div ref={placeholderRef} className="w-full h-full" />
+  if (free) {
+    return defaultBox ? layer : (
+      <>
+        <div ref={placeholderRef} className="w-full h-full" />
+        {layer}
+      </>
+    );
+  }
+  return (
+    <div className="w-full">
       {layer}
-    </>
-  ) : (
-    <div ref={placeholderRef} className="w-full">{layer}</div>
+      {onCaption && (
+        <div className="mt-2">
+          <CaptionField value={caption} onCommit={onCaption} align={align} fontSize={13} />
+        </div>
+      )}
+    </div>
   );
 }
 
-function Toolbar({ left, top, below, k, free, cropping, align, customised, onCrop, onDone, onCancel, onResetCrop, onAlign, onReset }) {
+/** An editable caption; saved when the user leaves the field (one undo step), not on every key. */
+function CaptionField({ value, onCommit, align, fontSize }) {
+  const ref = useRef(null);
+  const [draft, setDraft] = useState(null);
+  const text = draft ?? value ?? '';
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    ref.current.style.height = '0';
+    ref.current.style.height = `${ref.current.scrollHeight}px`;
+  }, [text, fontSize]);
+  return (
+    <textarea ref={ref} rows={1} value={text} placeholder="Add a caption"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { if (draft !== null && draft !== value) onCommit(draft); setDraft(null); }}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="block w-full resize-none overflow-hidden bg-transparent border-0 outline-none rounded-sm italic text-slate leading-snug p-0 focus:bg-[#F0F4F8]"
+      style={{ fontSize, textAlign: align }} />
+  );
+}
+
+function Toolbar({ left, top, below, k, free, cropping, align, customised, onReplace, onDelete, onCrop, onDone, onCancel, onResetCrop, onAlign, onReset }) {
   const btn = 'icon-btn w-7 h-7';
   return (
     // Anchored at the frame's top (or bottom) centre and counter-scaled so it stays readable on a small slide.
@@ -362,6 +410,16 @@ function Toolbar({ left, top, below, k, free, cropping, align, customised, onCro
             {customised && (
               <button type="button" className="icon-btn h-7 w-auto gap-1 px-1.5" title="Back to the original size, position and crop" onClick={onReset}>
                 <RotateCcw size={14} /><span>Reset</span>
+              </button>
+            )}
+            {onReplace && (
+              <button type="button" className="icon-btn h-7 w-auto gap-1 px-1.5" title="Swap for another figure" onClick={onReplace}>
+                <Replace size={14} /><span>Replace</span>
+              </button>
+            )}
+            {onDelete && (
+              <button type="button" className={`${btn} hover:text-red-700`} title="Remove picture (Delete)" aria-label="Remove picture" onClick={onDelete}>
+                <Trash2 size={14} />
               </button>
             )}
           </>

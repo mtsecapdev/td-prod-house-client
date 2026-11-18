@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send, Loader2, FileText, ChevronDown, ChevronRight, Layout, ImageIcon } from 'lucide-react';
+import { Send, Loader2, FileText, ChevronDown, ChevronRight, Layout, ImagePlus } from 'lucide-react';
 import { generations } from '../../services/api';
 import { KIND } from './kindConfig';
 import FigurePicker from '../figures/FigurePicker';
@@ -11,7 +11,7 @@ const SIMPLER = 'Use simpler language a non-specialist would follow. Keep the fa
  * The "This slide / This section" panel: say what to change, with a few one-click suggestions, a layout
  * chooser, a document figure picker, and the pages the item was written from.
  */
-export default function ItemPanel({ type, genId, index, item, documentIds = [], onUpdated, onAdded }) {
+export default function ItemPanel({ type, genId, index, item, documentIds = [], onUpdated, onAddFigure }) {
   const kind = KIND[type];
   const [history, setHistory] = useState([]);
   const [input, setInput] = useState('');
@@ -62,14 +62,12 @@ export default function ItemPanel({ type, genId, index, item, documentIds = [], 
     }
   }
 
-  // Replacing keeps the user on this item; adding after moves them to the new one.
-  async function placeFigure(figure, mode) {
-    const r = await generations.addFigure(genId, figure.id, { index, mode });
+  // Puts the figure on this slide/section (no rewrite); it can then be moved, resized and cropped in place.
+  function addFigure(figure) {
+    onAddFigure(figure);
     setPickingFigure(false);
-    const label = `${mode === 'replace' ? 'Use' : 'Add'} ${figure.caption || 'a figure'}`;
-    setHistory((h) => [...h, { role: 'user', content: label }, { role: 'assistant', content: 'Done.' }]);
-    if (mode === 'after' && onAdded) await onAdded(r.index);
-    else await onUpdated();
+    setHistory((h) => [...h, { role: 'user', content: `Add ${figure.caption || 'a figure'}` },
+      { role: 'assistant', content: `Added. Drag it to move, use the corners to resize, double-click to crop.` }]);
   }
 
   if (!item?.content) {
@@ -140,20 +138,15 @@ export default function ItemPanel({ type, genId, index, item, documentIds = [], 
         <button type="button" disabled={busy} onClick={openLayouts} className="chip-muted text-[12px] cursor-pointer hover:bg-[#E2E8F0] border-0 flex items-center gap-1">
           <Layout size={11} />Change layout
         </button>
-        {documentIds.length > 0 && (
+        {documentIds.length > 0 && onAddFigure && (
           <button type="button" disabled={busy} onClick={() => setPickingFigure(true)} className="chip-muted text-[12px] cursor-pointer hover:bg-[#E2E8F0] border-0 flex items-center gap-1">
-            <ImageIcon size={11} />{current === 'figure' ? 'Change figure' : 'Use a document figure'}
+            <ImagePlus size={11} />Add figure
           </button>
         )}
       </div>
       {pickingFigure && (
-        <FigurePicker documentIds={documentIds}
-          title={current === 'figure' ? 'Change figure' : 'Use a figure from your documents'}
-          modes={current === 'figure' ? [{ value: 'replace', label: 'Replace' }] : [
-            { value: 'after', label: `Add as a new ${kind.noun}` },
-            { value: 'replace', label: `Replace this ${kind.noun}` },
-          ]}
-          onPick={placeFigure} onClose={() => setPickingFigure(false)} />
+        <FigurePicker documentIds={documentIds} title={`Add a figure to this ${kind.noun}`}
+          onPick={addFigure} onClose={() => setPickingFigure(false)} />
       )}
       <form onSubmit={submit} className="shrink-0 flex gap-2 px-3 py-2.5">
         <input className="field flex-1 text-[13px]" value={input} onChange={(e) => setInput(e.target.value)} disabled={busy}

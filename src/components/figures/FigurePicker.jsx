@@ -2,14 +2,10 @@ import { useEffect, useState } from 'react';
 import { Search, X, Loader2 } from 'lucide-react';
 import { figures as figuresApi } from '../../services/api';
 
-/**
- * Choose a figure from the given documents. modes: the placement options shown ([] for none);
- * onPick(figure, mode) may return a promise; the picker shows progress until it settles.
- */
-export default function FigurePicker({ documentIds, title = 'Choose a figure', modes = [], onPick, onClose }) {
+/** Choose a figure from the given documents. onPick(figure) may return a promise; the picker waits for it. */
+export default function FigurePicker({ documentIds, title = 'Choose a figure', onPick, onClose }) {
   const [q, setQ] = useState('');
   const [list, setList] = useState(null);
-  const [mode, setMode] = useState(modes[0]?.value);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
 
@@ -24,7 +20,7 @@ export default function FigurePicker({ documentIds, title = 'Choose a figure', m
     setBusy(f.id);
     setError(null);
     try {
-      await onPick(f, mode);
+      await onPick(f);
     } catch (err) {
       setError(err.message);
       setBusy(null);
@@ -45,17 +41,6 @@ export default function FigurePicker({ documentIds, title = 'Choose a figure', m
             <input className="field pl-8 w-full" value={q} onChange={(e) => setQ(e.target.value)} autoFocus
               placeholder="Search captions and the text inside figures" />
           </div>
-          {modes.length > 1 && (
-            <div className="flex gap-1 p-0.5 bg-canvas rounded-md">
-              {modes.map((m) => (
-                <button key={m.value} type="button" onClick={() => setMode(m.value)}
-                  className={`px-2.5 py-1 rounded text-[13px] border-0 cursor-pointer ${
-                    mode === m.value ? 'bg-white text-navy font-semibold shadow-sm' : 'bg-transparent text-slate'}`}>
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <div className="flex-1 overflow-y-auto p-5">
           {error && <p className="text-red-700 text-[13px] mt-0">{error}</p>}
@@ -78,7 +63,6 @@ export default function FigurePicker({ documentIds, title = 'Choose a figure', m
             </div>
           )}
         </div>
-        {busy && <p className="hint text-[12px] px-5 pb-3 m-0">Writing the {modes.length ? 'slide' : 'item'} around this figure… about 30 seconds.</p>}
       </div>
     </div>
   );
