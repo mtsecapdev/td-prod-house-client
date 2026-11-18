@@ -281,7 +281,7 @@ function DiagramSlide({ content, genId, templateId, onField }) {
       </div>
       <div className="flex-1 min-h-0 flex items-center justify-center">
         {content.diagram_file
-          ? <AdjustableImage fill src={generations.diagramUrl(genId, content.diagram_file, templateId)} alt={content.caption || content.title}
+          ? <AdjustableImage mode="free" src={generations.diagramUrl(genId, content.diagram_file, templateId)} alt={content.caption || content.title}
               value={content.image} onChange={(v) => onField('image', v)} />
           : <p className="hint">Diagram not rendered yet.</p>}
       </div>
@@ -306,7 +306,7 @@ function FigureSlide({ content, onField }) {
       </div>
       <div className="flex-1 min-h-0 flex items-center justify-center">
         {content.figure_id
-          ? <AdjustableImage key={content.figure_id} fill src={figures.imageUrl(content.figure_id)} alt={content.caption || content.title}
+          ? <AdjustableImage key={content.figure_id} mode="free" src={figures.imageUrl(content.figure_id)} alt={content.caption || content.title}
               value={content.image} onChange={(v) => onField('image', v)} fallback={<FigureRemoved />} />
           : <FigureRemoved />}
       </div>
