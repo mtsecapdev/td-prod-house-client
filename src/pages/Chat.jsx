@@ -12,6 +12,7 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 import { documents, conversations } from '../services/api';
+import AnswerFigures from '../components/AnswerFigures';
 
 export default function Chat() {
   const [docs, setDocs] = useState([]);
@@ -144,6 +145,7 @@ export default function Chat() {
         content: reply.content,
         confidence: data.avgConfidenceScore,
         grounded: data.grounded,
+        figures: data.figures,
         chunks: data.chunks,
       };
       const allMessages = [...nextMessages, assistantMsg];
@@ -311,6 +313,7 @@ export default function Chat() {
                     </div>
                   )}
                   <div className="whitespace-pre-wrap">{msg.content}</div>
+                  <AnswerFigures figures={msg.figures} />
                   {msg.grounded === false && (
                     <p className="mt-2 text-[12px] text-amber-600 flex items-center gap-1">
                       <AlertTriangle size={12} />

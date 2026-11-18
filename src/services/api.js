@@ -82,6 +82,7 @@ export const documents = {
     });
   },
   downloadUrl: (id) => `${BASE}/documents/${id}/file`,
+  figureUrl: (figureId) => `${BASE}/documents/figures/${figureId}`,
   delete: (id) => request(`/documents/${id}`, { method: 'DELETE' }),
 };
 
