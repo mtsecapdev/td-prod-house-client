@@ -249,9 +249,11 @@ export const figures = {
     return request(`/figures?${params}`);
   },
   imageUrl: (id) => `${BASE}/figures/${id}/image`,
-  usage: (id) => request(`/figures/${id}/usage`),
-  setHidden: (id, hidden) => request(`/figures/${id}`, { method: 'PATCH', body: JSON.stringify({ hidden }) }),
-  remove: (id, { force = false } = {}) => request(`/figures/${id}${force ? '?force=1' : ''}`, { method: 'DELETE' }),
+  // Bulk actions take a list of figure ids (one id is fine).
+  downloadUrl: (ids) => `${BASE}/figures/download?ids=${ids.join(',')}`,
+  usage: (ids) => request('/figures/usage', { method: 'POST', body: JSON.stringify({ ids }) }),
+  setHidden: (ids, hidden) => request('/figures/hide', { method: 'POST', body: JSON.stringify({ ids, hidden }) }),
+  remove: (ids, { force = false } = {}) => request('/figures/delete', { method: 'POST', body: JSON.stringify({ ids, force }) }),
 };
 
 export const conversations = {

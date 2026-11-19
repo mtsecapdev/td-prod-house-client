@@ -9,7 +9,7 @@ const NOUN = { deck: 'slide', doc: 'section' };
  * Not in use: one confirmation. In use: lists where, offers the safe alternative (e.g. "Hide instead"), and
  * the delete button stays disabled until the user ticks that they understand what changes.
  */
-export default function DeleteWithUsageDialog({ title, what, usage, consequence, safeLabel, onSafe, onDelete, onCancel }) {
+export default function DeleteWithUsageDialog({ title, what, plural = false, usage, consequence, safeLabel, onSafe, onDelete, onCancel }) {
   const [understood, setUnderstood] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -35,7 +35,7 @@ export default function DeleteWithUsageDialog({ title, what, usage, consequence,
         </h2>
         {inUse ? (
           <>
-            <p className="m-0 text-[14px]">{what} is used in {usage.length} place{usage.length === 1 ? '' : 's'}:</p>
+            <p className="m-0 text-[14px]">{what} {plural ? 'are' : 'is'} used in {usage.length} place{usage.length === 1 ? '' : 's'}:</p>
             <ul className="m-0 pl-5 text-[14px] flex flex-col gap-1 max-h-[180px] overflow-y-auto">
               {usage.map((u, i) => (
                 <li key={i}>
