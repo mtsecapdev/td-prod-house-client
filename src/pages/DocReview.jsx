@@ -4,7 +4,7 @@ import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import ItemToolbar from '../components/plan/ItemToolbar';
 import Pictures from '../components/figures/Pictures';
-import { newPicture } from '../components/figures/pictureLayout';
+import { newPicture, samePicture } from '../components/figures/pictureLayout';
 import AdjustableImage from '../components/figures/AdjustableImage';
 import TemplateMenu from '../components/plan/TemplateMenu';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
@@ -372,7 +372,7 @@ function DiagramSection({ content, genId, templateId, onField, onApplyCode }) {
  * The training document editor, shown beside the chat. Like the deck editor, changes are asked for in the chat:
  * the selected section goes out through onSelect, "+" through onAddAfter, quick actions through onAsk.
  */
-export default function DocReview({ id, reloadKey = 0, addAfter = null, focus = null, onSelect, onAddAfter, onAsk, onClose, expanded, onToggleExpand }) {
+export default function DocReview({ id, reloadKey = 0, addAfter = null, focus = null, command = null, onSelect, onAddAfter, onAsk, onClose, expanded, onToggleExpand }) {
   const [gen, setGen] = useState(null);
   const [activeSection, setActiveSection] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -413,6 +413,16 @@ export default function DocReview({ id, reloadKey = 0, addAfter = null, focus = 
   }, [jobRunning, id]);
 
   useEffect(() => { onSelect?.(activeSection); }, [activeSection]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A figure or generated image sent from the chat goes into the selected section (one undo step).
+  const seenCommand = useRef(null);
+  useEffect(() => {
+    if (!command || command === seenCommand.current || !gen?.outline?.sections?.[activeSection]?.content) return;
+    seenCommand.current = command;
+    const pics = gen.outline.sections[activeSection].content.pictures || [];
+    if (pics.some((p) => samePicture(p, command.picture))) return; // already in this section
+    updateFieldAt(activeSection, 'pictures', [...pics, newPicture(command.picture)]);
+  }, [command, gen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // focus ({ index }) selects a section and scrolls to it, e.g. "Show" on a change made from the chat.
   const [seenFocus, setSeenFocus] = useState(null);
   if (focus && focus !== seenFocus) {

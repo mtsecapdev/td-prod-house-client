@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { documents } from '../services/api';
+import { UploadContext } from './upload';
 
-const UploadContext = createContext(null);
 
 const phaseWeights = {
   uploaded: 5, splitting: 10, converting: 55, chunking: 65,
@@ -62,8 +62,4 @@ export function UploadProvider({ children }) {
       {children}
     </UploadContext.Provider>
   );
-}
-
-export function useUpload() {
-  return useContext(UploadContext);
 }

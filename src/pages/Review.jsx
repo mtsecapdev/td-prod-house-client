@@ -3,7 +3,7 @@ import { ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, 
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import Pictures from '../components/figures/Pictures';
-import { newPicture } from '../components/figures/pictureLayout';
+import { newPicture, samePicture } from '../components/figures/pictureLayout';
 import AdjustableImage from '../components/figures/AdjustableImage';
 import ItemToolbar from '../components/plan/ItemToolbar';
 import TemplateMenu from '../components/plan/TemplateMenu';
@@ -881,9 +881,10 @@ function SlideThumbnail({ layout }) {
 /**
  * The slide deck editor, shown beside the chat. Changes are asked for in the chat: the selected slide is reported
  * through onSelect, "+" between slides through onAddAfter, and quick actions (Shorter, Simpler) through onAsk.
- * reloadKey changes when the chat has changed the deck, so it is fetched again; focus ({ index }) selects a slide.
+ * reloadKey changes when the chat has changed the deck, so it is fetched again; focus ({ index }) selects a slide;
+ * command ({ picture }) adds a figure or generated image from the chat to the selected slide.
  */
-export default function Review({ id, reloadKey = 0, addAfter = null, focus = null, onSelect, onAddAfter, onAsk, onClose, expanded, onToggleExpand }) {
+export default function Review({ id, reloadKey = 0, addAfter = null, focus = null, command = null, onSelect, onAddAfter, onAsk, onClose, expanded, onToggleExpand }) {
   const [gen, setGen] = useState(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -925,6 +926,17 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
   }, [jobRunning, id]);
 
   useEffect(() => { onSelect?.(activeSlide); }, [activeSlide]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A figure or generated image sent from the chat goes onto the selected slide (one undo step).
+  const seenCommand = useRef(null);
+  useEffect(() => {
+    if (!command || command === seenCommand.current || !gen?.outline?.slides?.[activeSlide]?.content) return;
+    seenCommand.current = command;
+    const s = gen.outline.slides[activeSlide];
+    const pics = s.content.pictures || [];
+    if (pics.some((p) => samePicture(p, command.picture))) return; // already on this slide
+    updateSlideField('pictures', [...pics, newPicture(command.picture, { slide: true, layout: s.layout || 'bullets', existing: pics.length })]);
+  }, [command, gen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // A new focus request (e.g. "Show" on a change made from the chat) selects that slide.
   const [seenFocus, setSeenFocus] = useState(null);
   if (focus && focus !== seenFocus) {

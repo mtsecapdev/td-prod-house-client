@@ -1,8 +1,9 @@
-import { AlertTriangle, CheckCircle2, FileSliders, FileText, Loader2, PencilLine } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileSliders, FileText, Image, Loader2, PencilLine } from 'lucide-react';
 import AnswerFigures from '../AnswerFigures';
 import AnswerText from './AnswerText';
 import GenerationCard from './GenerationCard';
 import AgentPlanCard from './AgentPlanCard';
+import ImageCard from './ImageCard';
 
 const PHASES = {
   rewriting: 'Understanding the question…',
@@ -12,6 +13,12 @@ const PHASES = {
   writing: 'Writing the new one…',
   planning: 'Planning the changes…',
   skill: 'Reading the conversation…',
+  imaging: 'Planning the image…',
+};
+const SKILL_TAGS = {
+  deck: [FileSliders, 'Slide deck'],
+  doc: [FileText, 'Training document'],
+  image: [Image, 'Image'],
 };
 const NOUN = { deck: 'slide', doc: 'section' };
 
@@ -28,7 +35,10 @@ function targetLabel(target, types) {
  * The conversation: questions and answers, the decks/documents made here (plans, then results), changes made to
  * them, and deck-wide proposals. pending: { content, phase } while a reply is on its way.
  */
-export default function MessageList({ conversationId, messages, pending, openGenerationId, onOpenGeneration, onShowItem, onMessageUpdated, onDeckChanged }) {
+export default function MessageList({
+  conversationId, messages, pending, openGenerationId, addLabel, onAddPicture,
+  onOpenGeneration, onShowItem, onMessageUpdated, onDeckChanged,
+}) {
   // Which generation is a deck and which a document, for labels on edits.
   const types = new Map(messages.filter((m) => m.kind === 'generation').map((m) => [m.data.generation_id, m.data.type]));
 
@@ -42,7 +52,8 @@ export default function MessageList({ conversationId, messages, pending, openGen
             <div key={m.id} className="flex flex-col items-end gap-1">
               {(target || skill) && (
                 <span className="text-[11px] text-slate flex items-center gap-1">
-                  {skill ? <>{skill === 'deck' ? <FileSliders size={11} /> : <FileText size={11} />}{skill === 'deck' ? 'Slide deck' : 'Training document'}</>
+                  {skill && SKILL_TAGS[skill]
+                    ? (() => { const [Icon, label] = SKILL_TAGS[skill]; return <><Icon size={11} />{label}</>; })()
                     : <><PencilLine size={11} />{targetLabel(target, types)}</>}
                 </span>
               )}
@@ -57,6 +68,12 @@ export default function MessageList({ conversationId, messages, pending, openGen
             <GenerationCard key={m.id} generationId={m.data.generation_id} type={m.data.type}
               open={openGenerationId === m.data.generation_id}
               onOpen={() => onOpenGeneration(m.data.generation_id)} />
+          );
+        }
+        if (m.kind === 'image') {
+          return (
+            <ImageCard key={m.id} data={m.data} addLabel={addLabel} onAdd={onAddPicture}
+              onPlaced={onDeckChanged} onShowItem={onShowItem} />
           );
         }
         if (m.kind === 'agent_plan') {
@@ -86,7 +103,7 @@ export default function MessageList({ conversationId, messages, pending, openGen
         return (
           <div key={m.id} className="max-w-[92%] rounded-xl rounded-bl-sm px-4 py-3 bg-white border border-border text-[14px] leading-relaxed">
             <AnswerText text={m.content} />
-            <AnswerFigures figures={m.data?.figures} />
+            <AnswerFigures figures={m.data?.figures} addLabel={addLabel} onAdd={onAddPicture} />
             {m.data?.grounded === false && (
               <p className="mt-2 mb-0 text-[12px] text-amber-700 flex items-center gap-1">
                 <AlertTriangle size={12} />Not found in the selected documents; this may rely on general knowledge.

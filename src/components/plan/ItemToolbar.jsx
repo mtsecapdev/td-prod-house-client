@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, FileText, Layout, ImagePlus, Minimize2, Feather, Workflow } from 'lucide-react';
+import { Loader2, FileText, Layout, ImagePlus, Minimize2, Feather, Workflow, Wand2 } from 'lucide-react';
 import { generations } from '../../services/api';
 import { KIND, typeLabel } from './kindConfig';
 import FigurePicker from '../figures/FigurePicker';
@@ -61,6 +61,8 @@ export default function ItemToolbar({ type, genId, index, item, documentIds = []
       {documentIds.length > 0 && onAddFigure && (
         <button type="button" className={chip} disabled={Boolean(busy)} onClick={() => setOpen('figure')}><ImagePlus size={12} />Add figure</button>
       )}
+      <button type="button" className={chip} disabled={Boolean(busy)} title={`Generate an image for this ${kind.noun}`}
+        onClick={() => onAsk(`Make an illustration for this ${kind.noun}`, 'AI image')}><Wand2 size={12} />AI image</button>
       {pages.length > 0 && (
         <button type="button" className={`${chip} text-slate`} onClick={() => setOpen(open === 'sources' ? null : 'sources')}>
           <FileText size={12} />From p. {pages.join(', ')}

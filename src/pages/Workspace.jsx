@@ -10,7 +10,7 @@ import Review from './Review';
 import DocReview from './DocReview';
 
 const EDITORS = { deck: Review, doc: DocReview };
-const panelDefaults = (gid) => ({ gid, selected: 0, scope: gid ? 'item' : null, addAfter: null, focus: null, expanded: false });
+const panelDefaults = (gid) => ({ gid, selected: 0, scope: gid ? 'item' : null, addAfter: null, focus: null, command: null, expanded: false });
 
 /**
  * The workspace: conversations about the documents (left), the chat (middle) and, when one is open, the deck or
@@ -106,7 +106,7 @@ export default function Workspace() {
     setError(null);
     const mode = forced ? 'edit' : skill ? 'skill' : editing ? 'edit' : 'ask';
     const scope = forced ? 'item' : editing?.scope;
-    setPending({ content: text, phase: mode === 'skill' ? 'skill' : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
+    setPending({ content: text, phase: mode === 'skill' ? (skill === 'image' ? 'imaging' : 'skill') : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
     try {
       let conv = conversation;
       if (!conv) {
@@ -157,6 +157,10 @@ export default function Workspace() {
   }
 
   const Editor = panelGen && panelGen.id === gid ? EDITORS[panelGen.type] : null;
+  // While a deck/document is open, figures under answers and images made in the chat can go onto its selected
+  // slide/section (the editor adds them, so it is one undo step).
+  const addLabel = Editor ? `Add to ${kind.noun} ${panel.selected + 1}` : null;
+  const addPicture = Editor ? (source) => setPanel((p) => ({ ...p, command: { picture: source, at: Date.now() } })) : null;
   const chatHidden = gid && panel.expanded;
 
   return (
@@ -186,6 +190,7 @@ export default function Workspace() {
               ) : (
                 <MessageList conversationId={conversation?.id} messages={messages} pending={pending}
                   openGenerationId={gid}
+                  addLabel={addLabel} onAddPicture={addPicture}
                   onOpenGeneration={(id) => navigate(`/c/${conversation.id}/g/${id}`)}
                   onShowItem={(id, index) => {
                     if (id !== gid) navigate(`/c/${conversation.id}/g/${id}`);
@@ -211,7 +216,6 @@ export default function Workspace() {
                 edit={editing}
                 onEditScope={(scope) => setPanel((p) => ({ ...p, scope }))}
                 onStopEditing={() => setPanel((p) => ({ ...p, scope: null, addAfter: null }))}
-                onImage={() => navigate('/create/image')}
                 disabled={Boolean(pending)}
                 onSend={(text) => send(text)} />
             </div>
@@ -222,7 +226,7 @@ export default function Workspace() {
       {gid && (
         <section className="flex-1 min-w-0 bg-white">
           {Editor ? (
-            <Editor key={gid} id={gid} reloadKey={reloadKey} addAfter={panel.scope === 'add' ? panel.addAfter : null} focus={panel.focus}
+            <Editor key={gid} id={gid} reloadKey={reloadKey} addAfter={panel.scope === 'add' ? panel.addAfter : null} focus={panel.focus} command={panel.command}
               onSelect={(i) => setPanel((p) => ({ ...p, selected: i, scope: p.scope === 'add' || !p.scope ? 'item' : p.scope, addAfter: null }))}
               onAddAfter={(i) => setPanel((p) => ({ ...p, scope: 'add', addAfter: i }))}
               onAsk={(instruction, _label, index) => { if (!pending) send(instruction, { index }); }}

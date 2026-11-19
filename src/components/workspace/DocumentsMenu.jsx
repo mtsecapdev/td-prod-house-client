@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Paperclip, Upload, Download, Trash2, Check, X, ChevronDown } from 'lucide-react';
 import { documents } from '../../services/api';
-import { useUpload } from '../../contexts/UploadContext';
+import { useUpload } from '../../contexts/upload';
 import ConfirmDocumentDelete from '../figures/ConfirmDocumentDelete';
 
 function IngestionProgress({ progress, phase }) {

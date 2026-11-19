@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Download, Trash2, FileSliders, FileText, Image } from 'lucide-react';
 import { assets } from '../services/api';
 
@@ -26,25 +26,19 @@ export default function Library() {
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('');
   const [loading, setLoading] = useState(true);
-  const debounceRef = useRef(null);
 
-  function loadAssets(q, k) {
-    setLoading(true);
-    assets.list({ q: q || undefined, kind: k || undefined })
-      .then(({ assets: list }) => setItems(list || []))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }
-
+  // One load per change; typing in the search waits for a pause.
   useEffect(() => {
-    loadAssets(search, kind);
-  }, [kind]);
-
-  useEffect(() => {
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => loadAssets(search, kind), 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [search]);
+    let live = true;
+    const t = setTimeout(() => {
+      setLoading(true);
+      assets.list({ q: search || undefined, kind: kind || undefined })
+        .then(({ assets: list }) => { if (live) setItems(list || []); })
+        .catch(() => { if (live) setItems([]); })
+        .finally(() => { if (live) setLoading(false); });
+    }, search ? 300 : 0);
+    return () => { live = false; clearTimeout(t); };
+  }, [search, kind]);
 
   async function handleDelete(id) {
     try {

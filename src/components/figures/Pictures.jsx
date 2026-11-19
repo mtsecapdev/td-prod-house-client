@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { figures as figuresApi } from '../../services/api';
 import AdjustableImage from './AdjustableImage';
 import FigurePicker from './FigurePicker';
 import { FigureRemoved } from './FigureImage';
-import { boxFor, figureCaption } from './pictureLayout';
+import { boxFor, figureCaption, pictureUrl } from './pictureLayout';
 
 /**
  * The pictures placed on one slide (free: drag anywhere on the slide) or section (inline: in the text column).
@@ -27,7 +26,7 @@ export default function Pictures({ pictures = [], onChange, slide = false, layou
       key={`${i}-${p.figure_id}`}
       mode={slide ? 'free' : 'inline'}
       defaultBox={slide ? boxFor(layout, i) : null}
-      src={figuresApi.imageUrl(p.figure_id)}
+      src={pictureUrl(p)}
       alt={p.caption || 'Figure'}
       value={p.x != null || p.w != null || p.crop || p.align ? { x: p.x, y: p.y, w: p.w, align: p.align, crop: p.crop } : undefined}
       onChange={(v) => setPlacement(i, v)}
@@ -47,7 +46,7 @@ export default function Pictures({ pictures = [], onChange, slide = false, layou
         <FigurePicker documentIds={documentIds} title="Replace the figure"
           onPick={(f) => {
             // Same place and width; the new figure's own caption; crop starts fresh (it was for the old picture).
-            update(replacing, { figure_id: f.id, caption: figureCaption(f.caption) || pictures[replacing].caption, crop: undefined });
+            update(replacing, { figure_id: f.id, image_id: undefined, caption: figureCaption(f.caption) || pictures[replacing].caption, crop: undefined });
             setReplacing(null);
           }}
           onClose={() => setReplacing(null)} />

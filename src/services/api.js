@@ -72,7 +72,7 @@ export const conversations = {
   // A question, or with target { generationId, index? | after? } a change to that deck/document.
   // Streams { phase } events; resolves with { phase: 'done', messages: [user, assistant] }.
   send: (id, content, target, onEvent) => stream(`/conversations/${id}/messages`, { content, target }, onEvent),
-  // Makes a deck ('deck') or training document ('doc') from the conversation; returns { messages }.
+  // Makes a deck ('deck'), training document ('doc') or image ('image') from the conversation; returns { messages }.
   skill: (id, type, request_) =>
     request(`/conversations/${id}/skills/${type}`, { method: 'POST', body: JSON.stringify({ request: request_ }) }),
   applyPlan: (id, messageId, steps) =>
@@ -81,8 +81,6 @@ export const conversations = {
 };
 
 export const generations = {
-  // Images only; decks and documents are made from a conversation (conversations.skill).
-  create: (body) => request('/generations', { method: 'POST', body: JSON.stringify(body) }),
   get: (id) => request(`/generations/${id}`),
   list: () => request('/generations'),
   // ── Planning (decks and documents) ──
@@ -126,16 +124,9 @@ export const generations = {
   openInDeckCraft: (id) => request(`/generations/${id}/open-deckcraft`, { method: 'POST' }),
   openInWordCraft: (id) => request(`/generations/${id}/open-wordcraft`, { method: 'POST' }),
 
-  uploadReferenceImage: (id, file) => {
-    const form = new FormData();
-    form.append('image', file);
-    return request(`/generations/${id}/reference-image`, { method: 'POST', body: form, headers: {} });
-  },
-  craftPrompt: (id) => request(`/generations/${id}/craft-prompt`, { method: 'POST' }),
-  updatePrompt: (id, prompt, negative_prompt) =>
-    request(`/generations/${id}/prompt`, { method: 'PUT', body: JSON.stringify({ prompt, negative_prompt }) }),
-  generateImage: (id, onEvent) => stream(`/generations/${id}/generate-image`, undefined, onEvent),
+  // A generated image (the image skill); retryImage generates it again after a failure.
   imageUrl: (id) => `${BASE}/generations/${id}/image`,
+  retryImage: (id) => request(`/generations/${id}/image`, { method: 'POST' }),
 
   // Renders Mermaid typed by the user; returns { diagram_file }. Throws with Mermaid's message if invalid.
   renderDiagram: (id, mermaidCode) =>
@@ -146,7 +137,6 @@ export const generations = {
   diagramDownloadUrl: (id, key, name = 'diagram', template = '') =>
     `${BASE}/generations/${id}/diagrams/${key}?download=1&name=${encodeURIComponent(name)}&template=${encodeURIComponent(template)}`,
 
-  releaseGpu: () => request('/generations/release-gpu', { method: 'POST' }),
   delete: (id) => request(`/generations/${id}`, { method: 'DELETE' }),
 };
 

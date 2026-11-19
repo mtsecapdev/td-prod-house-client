@@ -5,6 +5,7 @@ import DocumentsMenu from './DocumentsMenu';
 const SKILLS = [
   { type: 'deck', label: 'Slide deck', icon: FileSliders },
   { type: 'doc', label: 'Training document', icon: FileText },
+  { type: 'image', label: 'Image', icon: Image },
 ];
 
 /**
@@ -15,7 +16,7 @@ const SKILLS = [
  */
 export default function Composer({
   docs, docIds, onDocIdsChange, onDocsChanged,
-  skill, onSkill, edit, onEditScope, onStopEditing, onImage,
+  skill, onSkill, edit, onEditScope, onStopEditing,
   disabled, onSend,
 }) {
   const [text, setText] = useState('');
@@ -32,8 +33,10 @@ export default function Composer({
   useEffect(() => { ref.current?.focus(); }, [skill, edit?.scope, edit?.after]);
 
   const skillInfo = SKILLS.find((s) => s.type === skill);
-  const placeholder = skillInfo
-    ? `What should the ${skillInfo.label.toLowerCase()} cover? Optional: it uses this conversation.`
+  const placeholder = skill === 'image'
+    ? 'What should the image show? Optional: it uses this conversation.'
+    : skillInfo
+      ? `What should the ${skillInfo.label.toLowerCase()} cover? Optional: it uses this conversation.`
     : edit?.scope === 'add' ? `Describe the new ${edit.noun}`
       : edit?.scope === 'item' ? `What should change on ${edit.noun} ${edit.index + 1}?`
         : edit?.scope === 'all' ? `What should change across the ${edit.product}?`
@@ -104,9 +107,6 @@ export default function Composer({
                 <s.icon size={14} />{s.label}
               </button>
             ))}
-            <button type="button" onClick={onImage} className={`${chip} border-border bg-white text-ink hover:bg-canvas`}>
-              <Image size={14} />Image
-            </button>
           </>
         )}
       </div>

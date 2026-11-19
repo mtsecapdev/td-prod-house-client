@@ -1,20 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { generations } from '../services/api';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 
 export default function Layout() {
-  const { pathname } = useLocation();
-  const prevPath = useRef(pathname);
-
-  useEffect(() => {
-    const wasImage = prevPath.current.startsWith('/create/image/');
-    const isImage = pathname.startsWith('/create/image/');
-    prevPath.current = pathname;
-
-    if (wasImage && !isImage) {
-      generations.releaseGpu().catch(() => {});
-    }
-  }, [pathname]);
   return (
     // The header stays; each page fills the rest of the screen and scrolls itself (the workspace fills it exactly).
     <div className='h-screen flex flex-col bg-canvas font-body text-ink'>
