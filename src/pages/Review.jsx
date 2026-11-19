@@ -127,7 +127,8 @@ function BulletsSlide({ content, onField, onBullet, onMoveBullet, onAddBullet, o
       </div>
       <div className="w-full h-px bg-gradient-to-r from-[var(--color-border)] via-[var(--color-border)] to-transparent mb-2" />
       {content.bullets && (
-        <ol className="list-none m-0 p-0 flex flex-col gap-0 flex-1">
+        // With a picture on the slide the points take the left half (the picture's default spot is on the right).
+        <ol className={`list-none m-0 p-0 flex flex-col gap-0 flex-1 ${content.pictures?.length ? 'w-[52%]' : ''}`}>
           {content.bullets.map((b, i) => (
             <li key={i}
               draggable onDragStart={() => dragHandlers.start(i)}

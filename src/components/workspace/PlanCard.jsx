@@ -148,7 +148,7 @@ function Card({ kind, genId, item, index, total, onChange, onMove, onRemove }) {
           value={bullets} aria-label="Bullets, one per line"
           onChange={(e) => onChange({ bullets: e.target.value.split('\n') })}
           placeholder="What it should cover, one point per line" />
-        {item[kind.typeKey] === 'figure' && item.figure_id && (
+        {item.figure_id && (item[kind.typeKey] === 'figure' || item.figure_beside) && (
           <div className="flex items-center gap-3 pt-1">
             <FigureImage figureId={item.figure_id} alt="" className="h-[72px] max-w-[140px] object-contain border border-border rounded bg-white" />
             {item.type_reason && <span className="text-[12px] text-slate">{item.type_reason}</span>}
