@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Search, Download, Trash2, FileSliders, FileText, Image } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, Download, Trash2, FileSliders, FileText, Image, MessageSquare } from 'lucide-react';
 import { assets } from '../services/api';
 
 const kindOptions = [
@@ -72,7 +73,7 @@ export default function Library() {
       ) : items.length === 0 ? (
         <div className="card p-10 text-center">
           <p className="text-slate text-[15px]">
-            {search || kind ? 'No matching assets found.' : 'Nothing saved yet. Generate a slide deck and save it to see it here.'}
+            {search || kind ? 'No matching assets found.' : 'Nothing saved yet. Save a deck, document or image from the workspace to keep a copy here.'}
           </p>
         </div>
       ) : (
@@ -89,6 +90,12 @@ export default function Library() {
                   {' · '}Saved {formatDate(item.saved_at)}
                 </p>
               </div>
+              {item.conversation_id && (
+                <Link to={item.kind === 'image' ? `/c/${item.conversation_id}` : `/c/${item.conversation_id}/g/${item.generation_id}`}
+                  className="btn-ghost text-[13px] no-underline" title="Open in the chat it was made in">
+                  <MessageSquare size={15} />Open
+                </Link>
+              )}
               <a href={assets.downloadUrl(item.id)} download
                 className="p-2 rounded-md text-cobalt hover:bg-canvas hover:text-navy transition-colors"
                 title="Download">

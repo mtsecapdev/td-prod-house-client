@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PanelLeftOpen, AlertTriangle, X } from 'lucide-react';
+import { PanelLeftOpen, PanelRightOpen, AlertTriangle, X, Upload, Loader2 } from 'lucide-react';
 import { conversations, documents, generations } from '../services/api';
 import { KIND } from '../components/plan/kindConfig';
 import ConversationList from '../components/workspace/ConversationList';
 import MessageList from '../components/workspace/MessageList';
 import Composer from '../components/workspace/Composer';
+import { useMediaQuery } from '../components/workspace/useMediaQuery';
+import { useUpload } from '../contexts/upload';
 import Review from './Review';
 import DocReview from './DocReview';
 
 const EDITORS = { deck: Review, doc: DocReview };
-const panelDefaults = (gid) => ({ gid, selected: 0, scope: gid ? 'item' : null, addAfter: null, focus: null, command: null, expanded: false });
+const panelDefaults = (gid) => ({ gid, selected: 0, scope: gid ? 'item' : null, addAfter: null, focus: null, command: null, expanded: false, view: 'panel' });
+const ACCEPTED = /\.(pdf|docx|pptx|md|txt)$/i;
 
 /**
  * The workspace: conversations about the documents (left), the chat (middle) and, when one is open, the deck or
@@ -30,6 +33,12 @@ export default function Workspace() {
   const [pending, setPending] = useState(null);
   const [error, setError] = useState(null);
   const [sidebar, setSidebar] = useState(true);
+  const [drawer, setDrawer] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const wide = useMediaQuery('(min-width: 1280px)');
+  const veryWide = useMediaQuery('(min-width: 1536px)');
+  const roomy = useMediaQuery('(min-width: 768px)');
+  const { uploading, uploadMsg, uploadProgress, uploadFileName, startUpload } = useUpload();
   const [skill, setSkill] = useState(null);
   const [panelGen, setPanelGen] = useState(null);
   const [panel, setPanel] = useState(() => panelDefaults(gid));
@@ -100,13 +109,15 @@ export default function Workspace() {
 
   /**
    * Sends a message: a skill request, a change to the open deck/document, or a question. `forced` sends a change
-   * to one item regardless of the box's mode (the editor's Shorter/Simpler buttons).
+   * to one item regardless of the box's mode (the editor's Shorter/Simpler buttons); `skillOverride` sends it as
+   * that skill (a typed "/deck …" command).
    */
-  async function send(text, forced) {
+  async function send(text, forced, skillOverride) {
     setError(null);
-    const mode = forced ? 'edit' : skill ? 'skill' : editing ? 'edit' : 'ask';
+    const skill_ = skillOverride || skill;
+    const mode = forced ? 'edit' : skill_ ? 'skill' : editing ? 'edit' : 'ask';
     const scope = forced ? 'item' : editing?.scope;
-    setPending({ content: text, phase: mode === 'skill' ? (skill === 'image' ? 'imaging' : 'skill') : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
+    setPending({ content: text, phase: mode === 'skill' ? (skill_ === 'image' ? 'imaging' : 'skill') : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
     try {
       let conv = conversation;
       if (!conv) {
@@ -117,7 +128,7 @@ export default function Workspace() {
       }
       let added;
       if (mode === 'skill') {
-        added = (await conversations.skill(conv.id, skill, text)).messages;
+        added = (await conversations.skill(conv.id, skill_, text)).messages;
         setSkill(null);
       } else {
         const target = mode === 'edit' ? {
@@ -161,24 +172,72 @@ export default function Workspace() {
   // slide/section (the editor adds them, so it is one undo step).
   const addLabel = Editor ? `Add to ${kind.noun} ${panel.selected + 1}` : null;
   const addPicture = Editor ? (source) => setPanel((p) => ({ ...p, command: { picture: source, at: Date.now() } })) : null;
-  const chatHidden = gid && panel.expanded;
+  // Wide screens show the chat and the open deck side by side; narrower ones show one at a time.
+  const showChat = !gid || (wide ? !panel.expanded : panel.view === 'chat');
+  const showPanel = Boolean(gid) && (wide || panel.view === 'panel');
+  const sidebarFits = gid ? veryWide : roomy;
+
+  function backToChat() {
+    setPanel((p) => (wide ? { ...p, expanded: !p.expanded } : { ...p, view: 'chat' }));
+  }
+
+  // Files dropped on the chat are uploaded one after another and join this conversation when ready.
+  async function dropFiles(e) {
+    e.preventDefault();
+    setDragging(false);
+    const files = [...(e.dataTransfer?.files || [])];
+    const accepted = files.filter((f) => ACCEPTED.test(f.name));
+    if (accepted.length < files.length) setError(`Only PDF, Word, PowerPoint, Markdown and text files can be added (${files.length - accepted.length} skipped).`);
+    for (const file of accepted) {
+      await new Promise((done) => startUpload(file, (docId) => { docsChanged(docId); done(); }, () => loadDocs()));
+    }
+  }
+
+  const conversations_ = (
+    <ConversationList items={list} activeId={cid}
+      onNew={() => { setDrawer(false); navigate('/'); }}
+      onDelete={deleteConversation}
+      onCollapse={() => { setDrawer(false); setSidebar(false); }} />
+  );
 
   return (
     <div className="h-full flex overflow-hidden bg-canvas">
-      {sidebar && !chatHidden && (
-        <div className={gid ? 'hidden 2xl:flex' : 'hidden md:flex'}>
-          <ConversationList items={list} activeId={cid} onNew={() => navigate('/')} onDelete={deleteConversation} onCollapse={() => setSidebar(false)} />
+      {sidebar && showChat && sidebarFits && conversations_}
+      {drawer && !sidebarFits && (
+        <div className="fixed inset-0 z-40 flex" onClick={() => setDrawer(false)}>
+          <div className="h-full shadow-xl" onClick={(e) => e.stopPropagation()}>{conversations_}</div>
+          <div className="flex-1 bg-black/30" />
         </div>
       )}
 
-      {!chatHidden && (
-        <section className={`min-w-0 flex-col ${gid ? 'hidden xl:flex w-[440px] shrink-0 border-r border-border' : 'flex flex-1'}`}>
+      {showChat && (
+        <section
+          className={`relative min-w-0 flex flex-col ${gid && wide ? 'w-[440px] shrink-0 border-r border-border' : 'flex-1'}`}
+          onDragOver={(e) => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); setDragging(true); } }}
+          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false); }}
+          onDrop={dropFiles}>
+          {dragging && (
+            <div className="absolute inset-2 z-30 rounded-xl border-2 border-dashed border-cobalt bg-white/90 flex flex-col items-center justify-center gap-1 pointer-events-none">
+              <Upload size={24} className="text-cobalt" />
+              <p className="m-0 text-[15px] font-semibold text-navy">Drop to add to this chat</p>
+              <p className="m-0 text-[13px] text-slate">PDF, Word, PowerPoint, Markdown or text</p>
+            </div>
+          )}
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="max-w-[780px] mx-auto px-5 py-6">
-              {!sidebar && (
-                <button type="button" onClick={() => setSidebar(true)} className="btn-ghost text-[13px] mb-3">
-                  <PanelLeftOpen size={15} />Conversations
-                </button>
+              {(!sidebar || !sidebarFits || (gid && !wide)) && (
+                <div className="flex items-center gap-2 mb-3">
+                  {(!sidebar || !sidebarFits) && (
+                    <button type="button" onClick={() => (sidebarFits ? setSidebar(true) : setDrawer(true))} className="btn-ghost text-[13px]">
+                      <PanelLeftOpen size={15} />Conversations
+                    </button>
+                  )}
+                  {gid && !wide && (
+                    <button type="button" onClick={() => setPanel((p) => ({ ...p, view: 'panel' }))} className="btn-outline text-[13px] ml-auto">
+                      <PanelRightOpen size={15} />Back to the {panelGen?.type === 'doc' ? 'document' : 'deck'}
+                    </button>
+                  )}
+                </div>
               )}
               {!cid && !messages.length && !pending ? (
                 <div className="pt-[12vh] text-center flex flex-col gap-2">
@@ -186,6 +245,7 @@ export default function Workspace() {
                   <p className="text-[15px] text-slate m-0">
                     Ask about your documents, then turn what you find into a slide deck or a training document.
                   </p>
+                  <p className="text-[13px] text-slate m-0 mt-2">Drop files here to add them, or type / for commands.</p>
                 </div>
               ) : (
                 <MessageList conversationId={conversation?.id} messages={messages} pending={pending}
@@ -194,7 +254,7 @@ export default function Workspace() {
                   onOpenGeneration={(id) => navigate(`/c/${conversation.id}/g/${id}`)}
                   onShowItem={(id, index) => {
                     if (id !== gid) navigate(`/c/${conversation.id}/g/${id}`);
-                    setPanel((p) => ({ ...p, focus: { index } }));
+                    setPanel((p) => ({ ...p, focus: { index }, view: 'panel' }));
                   }}
                   onMessageUpdated={(msg) => setMessages((ms) => ms.map((m) => (m.id === msg.id ? msg : m)))}
                   onDeckChanged={() => setReloadKey((k) => k + 1)} />
@@ -204,6 +264,12 @@ export default function Workspace() {
           </div>
           <div className="shrink-0 border-t border-border bg-canvas px-5 py-3">
             <div className="max-w-[780px] mx-auto flex flex-col gap-2">
+              {uploading && (
+                <p className="m-0 text-[13px] text-slate flex items-center gap-1.5">
+                  <Loader2 size={13} className="animate-spin text-cobalt" />
+                  Adding {uploadFileName}: {uploadMsg || 'uploading'} ({uploadProgress}%)
+                </p>
+              )}
               {error && (
                 <p className="m-0 text-[13px] text-red-700 flex items-center gap-1.5">
                   <AlertTriangle size={14} />{error}
@@ -217,22 +283,23 @@ export default function Workspace() {
                 onEditScope={(scope) => setPanel((p) => ({ ...p, scope }))}
                 onStopEditing={() => setPanel((p) => ({ ...p, scope: null, addAfter: null }))}
                 disabled={Boolean(pending)}
-                onSend={(text) => send(text)} />
+                onSend={(text, skillOverride) => send(text, null, skillOverride)} />
             </div>
           </div>
         </section>
       )}
 
-      {gid && (
+      {showPanel && (
         <section className="flex-1 min-w-0 bg-white">
           {Editor ? (
             <Editor key={gid} id={gid} reloadKey={reloadKey} addAfter={panel.scope === 'add' ? panel.addAfter : null} focus={panel.focus} command={panel.command}
               onSelect={(i) => setPanel((p) => ({ ...p, selected: i, scope: p.scope === 'add' || !p.scope ? 'item' : p.scope, addAfter: null }))}
-              onAddAfter={(i) => setPanel((p) => ({ ...p, scope: 'add', addAfter: i }))}
+              onAddAfter={(i) => setPanel((p) => ({ ...p, scope: 'add', addAfter: i, ...(wide ? {} : { view: 'chat' }) }))}
               onAsk={(instruction, _label, index) => { if (!pending) send(instruction, { index }); }}
               onClose={() => navigate(`/c/${cid}`)}
-              expanded={panel.expanded}
-              onToggleExpand={() => setPanel((p) => ({ ...p, expanded: !p.expanded }))} />
+              // On narrow screens the "full screen" button becomes "back to the chat".
+              expanded={wide ? panel.expanded : true}
+              onToggleExpand={backToChat} />
           ) : <p className="hint p-6">Loading…</p>}
         </section>
       )}

@@ -2,6 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Send, FileSliders, FileText, Image, X, PencilLine, Plus } from 'lucide-react';
 import DocumentsMenu from './DocumentsMenu';
 
+// "/" commands: the skills, and (while editing) going back to asking questions.
+const COMMANDS = [
+  { cmd: 'deck', hint: 'Make a slide deck from this chat', skill: 'deck' },
+  { cmd: 'doc', hint: 'Make a training document from this chat', skill: 'doc' },
+  { cmd: 'image', hint: 'Make an image', skill: 'image' },
+  { cmd: 'ask', hint: 'Ask about the documents (stop editing)', editingOnly: true },
+];
+const COMMAND_RE = /^\/(\w*)(?:\s+([\s\S]*))?$/;
+
 const SKILLS = [
   { type: 'deck', label: 'Slide deck', icon: FileSliders },
   { type: 'doc', label: 'Training document', icon: FileText },
@@ -20,7 +29,20 @@ export default function Composer({
   disabled, onSend,
 }) {
   const [text, setText] = useState('');
+  const [picked, setPicked] = useState(0);
   const ref = useRef(null);
+
+  // The "/" menu: open while the box holds just "/word" (no space yet).
+  const typed = text.match(/^\/(\w*)$/);
+  const commands = typed ? COMMANDS.filter((c) => c.cmd.startsWith(typed[1].toLowerCase()) && (!c.editingOnly || edit)) : [];
+  const menuOpen = commands.length > 0;
+
+  function runCommand(c, rest = '') {
+    if (c.skill) onSkill(c.skill);
+    else onStopEditing();
+    setText(rest);
+    setPicked(0);
+  }
 
   useEffect(() => {
     const el = ref.current;
@@ -46,9 +68,34 @@ export default function Composer({
 
   function submit(e) {
     e?.preventDefault();
+    // "/deck six slides on cooling" sends straight away as that skill.
+    const m = text.trim().match(COMMAND_RE);
+    const command = m && COMMANDS.find((c) => c.cmd === m[1].toLowerCase() && c.skill);
+    if (command && !disabled) {
+      onSend((m[2] || '').trim(), command.skill);
+      setText('');
+      return;
+    }
     if (!canSend) return;
     onSend(text.trim());
     setText('');
+  }
+
+  function onKeyDown(e) {
+    if (menuOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setPicked((i) => (i + (e.key === 'ArrowDown' ? 1 : commands.length - 1)) % commands.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        runCommand(commands[Math.min(picked, commands.length - 1)]);
+        return;
+      }
+      if (e.key === 'Escape') { setText(''); return; }
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); }
   }
 
   const chip = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] border cursor-pointer';
@@ -86,9 +133,22 @@ export default function Composer({
         </div>
       )}
 
-      <div className="flex items-end gap-2 bg-white border border-border rounded-xl px-3 py-2 focus-within:border-cobalt">
-        <textarea ref={ref} rows={1} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
+      <div className="relative flex items-end gap-2 bg-white border border-border rounded-xl px-3 py-2 focus-within:border-cobalt">
+        {menuOpen && (
+          <ul role="listbox" aria-label="Commands" className="absolute left-0 bottom-full mb-2 z-30 w-[320px] max-w-full list-none m-0 p-1 bg-white border border-border rounded-lg shadow-lg">
+            {commands.map((c, i) => (
+              <li key={c.cmd} role="option" aria-selected={i === picked}>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); runCommand(c); }} onMouseEnter={() => setPicked(i)}
+                  className={`w-full text-left flex items-baseline gap-2 px-2.5 py-1.5 rounded-md border-0 cursor-pointer ${i === picked ? 'bg-[#EAF0F8]' : 'bg-transparent'}`}>
+                  <span className="text-[13px] font-semibold text-navy">/{c.cmd}</span>
+                  <span className="text-[12px] text-slate">{c.hint}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <textarea ref={ref} rows={1} value={text} onChange={(e) => { setText(e.target.value); setPicked(0); }} placeholder={placeholder}
+          onKeyDown={onKeyDown}
           className="flex-1 resize-none bg-transparent border-0 outline-none text-[14px] leading-6 py-1 placeholder:text-slate/60" />
         <button type="submit" disabled={!canSend} aria-label="Send"
           className="w-9 h-9 shrink-0 rounded-lg bg-navy text-white flex items-center justify-center border-0 cursor-pointer disabled:opacity-40 disabled:cursor-default">
