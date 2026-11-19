@@ -241,18 +241,16 @@ export const generations = {
 
 // Figures from ingested documents (the Assets page, figure pickers, chat answers).
 export const figures = {
-  list: ({ q = '', documentIds = [], includeHidden = false } = {}) => {
+  list: ({ q = '', documentIds = [] } = {}) => {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (documentIds.length) params.set('documentIds', documentIds.join(','));
-    if (includeHidden) params.set('includeHidden', '1');
     return request(`/figures?${params}`);
   },
   imageUrl: (id) => `${BASE}/figures/${id}/image`,
   // Bulk actions take a list of figure ids (one id is fine).
   downloadUrl: (ids) => `${BASE}/figures/download?ids=${ids.join(',')}`,
   usage: (ids) => request('/figures/usage', { method: 'POST', body: JSON.stringify({ ids }) }),
-  setHidden: (ids, hidden) => request('/figures/hide', { method: 'POST', body: JSON.stringify({ ids, hidden }) }),
   remove: (ids, { force = false } = {}) => request('/figures/delete', { method: 'POST', body: JSON.stringify({ ids, force }) }),
 };
 

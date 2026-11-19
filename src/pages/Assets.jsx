@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Download, EyeOff, Eye, Trash2, Maximize2, Plus, FileSliders, FileText, X, Loader2, Check, CheckSquare } from 'lucide-react';
+import { Search, Download, Trash2, Maximize2, Plus, FileSliders, FileText, X, Loader2, Check, CheckSquare } from 'lucide-react';
 import { figures as figuresApi, documents, generations } from '../services/api';
 import FigureLightbox from '../components/figures/FigureLightbox';
 import DeleteWithUsageDialog from '../components/figures/DeleteWithUsageDialog';
 
 /**
- * Figures saved from uploaded documents, grouped by document: view, download, use in a deck/doc, hide, delete.
+ * Figures saved from uploaded documents, grouped by document: view, download, use in a deck/doc, delete.
  * Several can be selected (tick on hover, or the Select button; shift-click for a range) to download as a zip,
- * hide or delete together.
+ * or delete together.
  */
 export default function Assets() {
   const [docs, setDocs] = useState([]);
   const [docFilter, setDocFilter] = useState('');
   const [q, setQ] = useState('');
-  const [showHidden, setShowHidden] = useState(false);
   const [list, setList] = useState(null);
   const [error, setError] = useState(null);
   const [viewing, setViewing] = useState(null);
@@ -30,7 +29,7 @@ export default function Assets() {
   }, []);
 
   function load() {
-    return figuresApi.list({ q, documentIds: docFilter ? [Number(docFilter)] : [], includeHidden: showHidden })
+    return figuresApi.list({ q, documentIds: docFilter ? [Number(docFilter)] : [] })
       .then((d) => {
         setList(d.figures);
         setError(null);
@@ -44,7 +43,7 @@ export default function Assets() {
   useEffect(() => {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
-  }, [q, docFilter, showHidden]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, docFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const groups = useMemo(() => {
     const byDoc = new Map();
@@ -56,8 +55,6 @@ export default function Assets() {
   }, [list]);
 
   const selecting = selectMode || selected.size > 0;
-  const selectedFigures = (list || []).filter((f) => selected.has(f.id));
-  const allHidden = selectedFigures.length > 0 && selectedFigures.every((f) => f.hidden);
 
   function endSelecting() {
     setSelected(new Set());
@@ -108,11 +105,6 @@ export default function Assets() {
     setBusy(false);
   }
 
-  const setHidden = (ids, hidden) => run(async () => {
-    await figuresApi.setHidden(ids, hidden);
-    await load();
-  });
-
   const startDelete = (ids) => run(async () => {
     const { usage } = await figuresApi.usage(ids);
     setDeleting({ ids, usage });
@@ -138,10 +130,6 @@ export default function Assets() {
           <option value="">All documents</option>
           {withFigures.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
-        <label className="flex items-center gap-2 text-[14px] text-slate cursor-pointer">
-          <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} className="w-4 h-4 accent-navy" />
-          Show hidden
-        </label>
         <button type="button" onClick={() => (selecting ? endSelecting() : setSelectMode(true))}
           className={selecting ? 'btn-primary' : 'btn-outline'} aria-pressed={selecting}>
           <CheckSquare size={15} />{selecting ? 'Done' : 'Select'}
@@ -172,7 +160,7 @@ export default function Assets() {
                 <FigureCard key={f.id} figure={f} selecting={selecting} selected={selected.has(f.id)}
                   onToggle={(shift) => toggle(f, shift)}
                   onView={() => setViewing(f)} onUse={() => setUsingIn(f)}
-                  onToggleHidden={() => setHidden([f.id], !f.hidden)} onDelete={() => startDelete([f.id])} />
+                  onDelete={() => startDelete([f.id])} />
               ))}
             </div>
           </section>
@@ -196,9 +184,6 @@ export default function Assets() {
                   download={ids.length === 1 ? `figure-${ids[0]}.png` : true} className="btn-outline no-underline">
                   <Download size={15} />Download{selected.size > 1 ? ' (.zip)' : ''}
                 </a>
-                <button type="button" disabled={busy} onClick={() => setHidden(ids, !allHidden)} className="btn-outline">
-                  {allHidden ? <><Eye size={15} />Unhide</> : <><EyeOff size={15} />Hide</>}
-                </button>
                 <button type="button" disabled={busy} onClick={() => startDelete(ids)} className="btn-outline text-red-700 hover:border-red-400">
                   {busy ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}Delete
                 </button>
@@ -217,13 +202,7 @@ export default function Assets() {
           what={deleting.ids.length === 1 ? 'This figure' : `These ${deleting.ids.length} figures`}
           plural={deleting.ids.length > 1}
           usage={deleting.usage}
-          consequence="Those slides and sections will show “Figure removed”. Hiding instead keeps them working and removes the figures from this page and the pickers."
-          safeLabel="Hide instead"
-          onSafe={async () => {
-            await figuresApi.setHidden(deleting.ids, true);
-            setDeleting(null);
-            await load();
-          }}
+          consequence="Those slides and sections will show “Figure removed”."
           onDelete={async () => {
             await figuresApi.remove(deleting.ids, { force: deleting.usage.length > 0 });
             setSelected((sel) => new Set([...sel].filter((id) => !deleting.ids.includes(id))));
@@ -237,10 +216,10 @@ export default function Assets() {
   );
 }
 
-function FigureCard({ figure: f, selecting, selected, onToggle, onView, onUse, onToggleHidden, onDelete }) {
+function FigureCard({ figure: f, selecting, selected, onToggle, onView, onUse, onDelete }) {
   const url = figuresApi.imageUrl(f.id);
   return (
-    <div className={`group relative bg-white border rounded-lg p-2 flex flex-col gap-1.5 ${f.hidden ? 'opacity-60' : ''} ${
+    <div className={`group relative bg-white border rounded-lg p-2 flex flex-col gap-1.5 ${
       selected ? 'border-cobalt ring-2 ring-cobalt/40' : 'border-border'}`}>
       <button type="button"
         onClick={(e) => (selecting ? onToggle(e.shiftKey) : onView())}
@@ -259,13 +238,10 @@ function FigureCard({ figure: f, selecting, selected, onToggle, onView, onUse, o
         {selected && <Check size={13} strokeWidth={3} />}
       </span>
       <span className="text-[12px] leading-snug line-clamp-2 min-h-[2.5em]" title={f.caption || ''}>{f.caption || 'Untitled figure'}</span>
-      <span className="text-[11px] text-slate">p. {f.page ?? '?'}{f.hidden ? ' · hidden' : ''}</span>
+      <span className="text-[11px] text-slate">p. {f.page ?? '?'}</span>
       <div className={`flex items-center gap-0.5 -mx-1 ${selecting ? 'invisible' : ''}`}>
         <button type="button" onClick={onUse} className="btn-ghost text-[12px] px-2 py-1 mr-auto"><Plus size={13} /> Use in…</button>
         <a href={url} download={`figure-${f.id}.png`} className="icon-btn" aria-label="Download" title="Download"><Download size={14} /></a>
-        <button type="button" onClick={onToggleHidden} className="icon-btn" aria-label={f.hidden ? 'Unhide' : 'Hide'} title={f.hidden ? 'Unhide' : 'Hide'}>
-          {f.hidden ? <Eye size={14} /> : <EyeOff size={14} />}
-        </button>
         <button type="button" onClick={onDelete} className="icon-btn hover:text-red-700" aria-label="Delete" title="Delete"><Trash2 size={14} /></button>
       </div>
     </div>

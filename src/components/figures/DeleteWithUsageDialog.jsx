@@ -6,10 +6,10 @@ const NOUN = { deck: 'slide', doc: 'section' };
 
 /**
  * Confirms deleting something (a figure, a document) that decks or documents may use.
- * Not in use: one confirmation. In use: lists where, offers the safe alternative (e.g. "Hide instead"), and
+ * Not in use: one confirmation. In use: lists where, and
  * the delete button stays disabled until the user ticks that they understand what changes.
  */
-export default function DeleteWithUsageDialog({ title, what, plural = false, usage, consequence, safeLabel, onSafe, onDelete, onCancel }) {
+export default function DeleteWithUsageDialog({ title, what, plural = false, usage, consequence, onDelete, onCancel }) {
   const [understood, setUnderstood] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -56,7 +56,6 @@ export default function DeleteWithUsageDialog({ title, what, plural = false, usa
         {error && <p className="text-red-700 text-[13px] m-0">{error}</p>}
         <div className="flex justify-end gap-2 flex-wrap pt-1">
           <button type="button" onClick={onCancel} disabled={busy} className="btn-ghost">Cancel</button>
-          {inUse && onSafe && <button type="button" onClick={() => run(onSafe)} disabled={busy} className="btn-outline">{safeLabel}</button>}
           <button type="button" onClick={() => run(onDelete)} disabled={busy || (inUse && !understood)}
             className="btn-primary bg-red-600 hover:bg-red-700 border-red-600">
             {busy && <Loader2 size={14} className="animate-spin" />}
