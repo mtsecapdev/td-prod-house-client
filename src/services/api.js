@@ -1,85 +1,59 @@
 const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
+// The server's error responses carry the message in error.message (handled errors) or data.message (thrown ones).
+function errorMessage(json, status) {
+  return json?.error?.message || json?.data?.message || `Request failed: ${status}`;
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error?.message || `Request failed: ${res.status}`);
+  if (!res.ok) throw new Error(errorMessage(json, res.status));
   return json.data;
+}
+
+/**
+ * POSTs and reads a server-sent event stream, calling onEvent for each event. Resolves with the last event.
+ * body: an object (sent as JSON) or FormData.
+ */
+async function stream(path, body, onEvent = () => {}, signal) {
+  const isForm = body instanceof FormData;
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    signal,
+    ...(body === undefined ? {} : isForm ? { body } : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }),
+  });
+  if (!res.ok && !res.headers.get('content-type')?.includes('event-stream')) {
+    throw new Error(errorMessage(await res.json().catch(() => ({})), res.status));
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let last = null;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return last;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop();
+    for (const event of events) {
+      if (!event.startsWith('data: ')) continue;
+      last = JSON.parse(event.slice(6));
+      onEvent(last);
+    }
+  }
 }
 
 export const documents = {
   list: () => request('/documents'),
-  upload: (file) => {
+  // Progress events while the document is converted, split, embedded and summarised.
+  uploadStream: (file, onEvent) => {
     const form = new FormData();
     form.append('uploaded_file', file);
-    return request('/documents/upload', { method: 'POST', body: form, headers: {} });
-  },
-  uploadStream: (file, onMessage) => {
-    const form = new FormData();
-    form.append('uploaded_file', file);
-    return new Promise((resolve, reject) => {
-      fetch(`${BASE}/documents/upload-stream`, { method: 'POST', body: form })
-        .then((res) => {
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-          function read() {
-            reader.read().then(({ done, value }) => {
-              if (done) return resolve();
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n\n');
-              buffer = lines.pop();
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try { onMessage(JSON.parse(line.slice(6))); } catch {}
-                }
-              }
-              read();
-            }).catch(reject);
-          }
-          read();
-        })
-        .catch(reject);
-    });
-  },
-  query: (query, history, docIdsToReference, onMessage) => {
-    return new Promise((resolve, reject) => {
-      fetch(`${BASE}/documents/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, history, docIdsToReference }),
-      })
-        .then((res) => {
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-          let result = null;
-          function read() {
-            reader.read().then(({ done, value }) => {
-              if (done) return resolve(result);
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n\n');
-              buffer = lines.pop();
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try {
-                    const evt = JSON.parse(line.slice(6));
-                    if (evt.phase === 'done') result = evt;
-                    if (evt.phase === 'error') reject(new Error(evt.message));
-                    if (onMessage) onMessage(evt);
-                  } catch {}
-                }
-              }
-              read();
-            }).catch(reject);
-          }
-          read();
-        })
-        .catch(reject);
-    });
+    return stream('/documents/upload-stream', form, onEvent);
   },
   downloadUrl: (id) => `${BASE}/documents/${id}/file`,
   // force: delete even when its figures are used in decks/documents (check usage() first).
@@ -87,7 +61,27 @@ export const documents = {
   usage: (id) => request(`/documents/${id}/usage`),
 };
 
+// The workspace: conversations where questions are answered and decks/documents are made and changed.
+export const conversations = {
+  list: () => request('/conversations'),
+  get: (id) => request(`/conversations/${id}`),
+  // { title?, docIds?, generationId? } — generationId gives an older deck/document its own conversation.
+  create: (body = {}) => request('/conversations', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id, { title, docIds }) => request(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ title, docIds }) }),
+  delete: (id) => request(`/conversations/${id}`, { method: 'DELETE' }),
+  // A question, or with target { generationId, index? | after? } a change to that deck/document.
+  // Streams { phase } events; resolves with { phase: 'done', messages: [user, assistant] }.
+  send: (id, content, target, onEvent) => stream(`/conversations/${id}/messages`, { content, target }, onEvent),
+  // Makes a deck ('deck') or training document ('doc') from the conversation; returns { messages }.
+  skill: (id, type, request_) =>
+    request(`/conversations/${id}/skills/${type}`, { method: 'POST', body: JSON.stringify({ request: request_ }) }),
+  applyPlan: (id, messageId, steps) =>
+    request(`/conversations/${id}/messages/${messageId}/apply`, { method: 'POST', body: JSON.stringify({ steps }) }),
+  undoPlan: (id, messageId) => request(`/conversations/${id}/messages/${messageId}/undo`, { method: 'POST' }),
+};
+
 export const generations = {
+  // Images only; decks and documents are made from a conversation (conversations.skill).
   create: (body) => request('/generations', { method: 'POST', body: JSON.stringify(body) }),
   get: (id) => request(`/generations/${id}`),
   list: () => request('/generations'),
@@ -114,120 +108,38 @@ export const generations = {
     request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}/${index}/regenerate`, {
       method: 'POST', body: JSON.stringify({ note, type: itemType }),
     }),
-  // Remix: the best other layouts for an item, with reasons ({ type, reason }[]). visual: only visual layouts.
-  suggestLayouts: (type, id, index, visual = false) =>
-    request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}/${index}/layouts${visual ? '?visual=1' : ''}`),
-  // Deck-wide agent: plan (nothing changes), apply the kept steps (background job), undo the last change.
-  agentPlan: (id, instruction) =>
-    request(`/generations/${id}/agent/plan`, { method: 'POST', body: JSON.stringify({ instruction }) }),
-  agentApply: (id, steps) =>
-    request(`/generations/${id}/agent/apply`, { method: 'POST', body: JSON.stringify({ steps }) }),
-  agentUndo: (id) => request(`/generations/${id}/agent/undo`, { method: 'POST' }),
+  // The best other layouts for an item, with reasons ({ type, reason }[]).
+  suggestLayouts: (type, id, index) =>
+    request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}/${index}/layouts`),
   // Adds a document figure as a new Figure slide/section, written around it; no index = before the closing.
   addFigure: (id, figureId, { index } = {}) =>
     request(`/generations/${id}/figures`, { method: 'POST', body: JSON.stringify({ figureId, index }) }),
-  // "Add with AI": plans and writes a new slide/section after index `after`.
-  addItem: (type, id, after, description) =>
-    request(`/generations/${id}/${type === 'deck' ? 'slides' : 'sections'}`, {
-      method: 'POST', body: JSON.stringify({ after, description }),
-    }),
 
   // Writes every slide/section that has no content yet, streaming events: start, slide|section (progress),
   // item_done {index, item}, done, error. If a write is already running, streams that one instead.
-  write: async (id, onMessage, signal) => {
-    const res = await fetch(`${BASE}/generations/${id}/write`, { method: 'POST', signal });
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) return;
-      buffer += decoder.decode(value, { stream: true });
-      const events = buffer.split('\n\n');
-      buffer = events.pop();
-      for (const event of events) {
-        if (event.startsWith('data: ')) onMessage(JSON.parse(event.slice(6)));
-      }
-    }
-  },
+  write: (id, onEvent, signal) => stream(`/generations/${id}/write`, undefined, onEvent, signal),
 
   updateOutline: (id, outline) =>
     request(`/generations/${id}/outline`, { method: 'PUT', body: JSON.stringify({ outline }) }),
 
-  editSlide: (id, slideIndex, instruction, history = []) =>
-    request(`/generations/${id}/slides/${slideIndex}/chat`, {
-      method: 'POST',
-      body: JSON.stringify({ instruction, history }),
-    }),
-
-  editSection: (id, sectionIndex, instruction, history = []) =>
-    request(`/generations/${id}/sections/${sectionIndex}/chat`, {
-      method: 'POST',
-      body: JSON.stringify({ instruction, history }),
-    }),
-
   downloadUrl: (id) => `${BASE}/generations/${id}/file`,
-
-  openInDeckCraft: (id) =>
-    request(`/generations/${id}/open-deckcraft`, { method: 'POST' }),
-
-  openInWordCraft: (id) =>
-    request(`/generations/${id}/open-wordcraft`, { method: 'POST' }),
+  openInDeckCraft: (id) => request(`/generations/${id}/open-deckcraft`, { method: 'POST' }),
+  openInWordCraft: (id) => request(`/generations/${id}/open-wordcraft`, { method: 'POST' }),
 
   uploadReferenceImage: (id, file) => {
     const form = new FormData();
     form.append('image', file);
     return request(`/generations/${id}/reference-image`, { method: 'POST', body: form, headers: {} });
   },
-
-  craftPrompt: (id) =>
-    request(`/generations/${id}/craft-prompt`, { method: 'POST' }),
-
+  craftPrompt: (id) => request(`/generations/${id}/craft-prompt`, { method: 'POST' }),
   updatePrompt: (id, prompt, negative_prompt) =>
-    request(`/generations/${id}/prompt`, {
-      method: 'PUT',
-      body: JSON.stringify({ prompt, negative_prompt }),
-    }),
-
-  generateImage: (id, onMessage) => {
-    return new Promise((resolve, reject) => {
-      fetch(`${BASE}/generations/${id}/generate-image`, { method: 'POST' })
-        .then((res) => {
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-
-          function read() {
-            reader.read().then(({ done, value }) => {
-              if (done) return resolve();
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n\n');
-              buffer = lines.pop();
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try {
-                    onMessage(JSON.parse(line.slice(6)));
-                  } catch {}
-                }
-              }
-              read();
-            }).catch(reject);
-          }
-          read();
-        })
-        .catch(reject);
-    });
-  },
-
+    request(`/generations/${id}/prompt`, { method: 'PUT', body: JSON.stringify({ prompt, negative_prompt }) }),
+  generateImage: (id, onEvent) => stream(`/generations/${id}/generate-image`, undefined, onEvent),
   imageUrl: (id) => `${BASE}/generations/${id}/image`,
 
   // Renders Mermaid typed by the user; returns { diagram_file }. Throws with Mermaid's message if invalid.
   renderDiagram: (id, mermaidCode) =>
-    request(`/generations/${id}/diagram`, {
-      method: 'POST',
-      body: JSON.stringify({ mermaid_code: mermaidCode }),
-    }),
-
+    request(`/generations/${id}/diagram`, { method: 'POST', body: JSON.stringify({ mermaid_code: mermaidCode }) }),
   // `template` picks the diagram's colours; it is part of the URL so switching template refreshes the image.
   diagramUrl: (id, key, template = '') =>
     `${BASE}/generations/${id}/diagrams/${key}?template=${encodeURIComponent(template)}`,
@@ -235,7 +147,6 @@ export const generations = {
     `${BASE}/generations/${id}/diagrams/${key}?download=1&name=${encodeURIComponent(name)}&template=${encodeURIComponent(template)}`,
 
   releaseGpu: () => request('/generations/release-gpu', { method: 'POST' }),
-
   delete: (id) => request(`/generations/${id}`, { method: 'DELETE' }),
 };
 
@@ -252,14 +163,6 @@ export const figures = {
   downloadUrl: (ids) => `${BASE}/figures/download?ids=${ids.join(',')}`,
   usage: (ids) => request('/figures/usage', { method: 'POST', body: JSON.stringify({ ids }) }),
   remove: (ids, { force = false } = {}) => request('/figures/delete', { method: 'POST', body: JSON.stringify({ ids, force }) }),
-};
-
-export const conversations = {
-  list: () => request('/conversations'),
-  get: (id) => request(`/conversations/${id}`),
-  create: (title, docIds) => request('/conversations', { method: 'POST', body: JSON.stringify({ title, docIds }) }),
-  update: (id, data) => request(`/conversations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id) => request(`/conversations/${id}`, { method: 'DELETE' }),
 };
 
 export const assets = {

@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, MessageSquare, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, X, GripVertical, Undo2, Redo2, Download, BookmarkPlus, Check, ExternalLink, Loader2, Trash2, Maximize2, Minimize2 } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
 import Pictures from '../components/figures/Pictures';
 import { newPicture } from '../components/figures/pictureLayout';
 import AdjustableImage from '../components/figures/AdjustableImage';
-import ItemPanel from '../components/plan/ItemPanel';
-import AddItemForm from '../components/plan/AddItemForm';
+import ItemToolbar from '../components/plan/ItemToolbar';
 import TemplateMenu from '../components/plan/TemplateMenu';
-import AgentPanel from '../components/plan/AgentPanel';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
 import { useItemDelete, shiftedHistory } from '../components/plan/useItemDelete';
 import DeletedToast from '../components/plan/DeletedToast';
@@ -881,13 +878,14 @@ function SlideThumbnail({ layout }) {
    MAIN REVIEW PAGE
    ══════════════════════════════════════ */
 
-export default function Review() {
-  const { id } = useParams();
+/**
+ * The slide deck editor, shown beside the chat. Changes are asked for in the chat: the selected slide is reported
+ * through onSelect, "+" between slides through onAddAfter, and quick actions (Shorter, Simpler) through onAsk.
+ * reloadKey changes when the chat has changed the deck, so it is fetched again; focus ({ index }) selects a slide.
+ */
+export default function Review({ id, reloadKey = 0, addAfter = null, focus = null, onSelect, onAddAfter, onAsk, onClose, expanded, onToggleExpand }) {
   const [gen, setGen] = useState(null);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [chatOpen, setChatOpen] = useState(true);
-  const [panelTab, setPanelTab] = useState('item'); // 'item' | 'deck' (agent)
-  const [addAfter, setAddAfter] = useState(null); // index the "+" was pressed after (-1 = start), or null
   const [saving, setSaving] = useState(false);
   const [savedToLibrary, setSavedToLibrary] = useState(false);
   const [savingToLibrary, setSavingToLibrary] = useState(false);
@@ -915,8 +913,24 @@ export default function Review() {
   }, []);
 
   useEffect(() => {
-    generations.get(id).then(({ generation }) => setGen(generation));
-  }, [id]);
+    generations.get(id).then(({ generation }) => setGen(generation)).catch(() => {});
+  }, [id, reloadKey]);
+
+  // While a change asked for in the chat is applied (a background job), refresh so slides change in place.
+  const jobRunning = gen?.job?.state === 'running' && live.phase !== 'writing';
+  useEffect(() => {
+    if (!jobRunning) return undefined;
+    const t = setInterval(() => generations.get(id).then(({ generation }) => setGen(generation)).catch(() => {}), 2500);
+    return () => clearInterval(t);
+  }, [jobRunning, id]);
+
+  useEffect(() => { onSelect?.(activeSlide); }, [activeSlide]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A new focus request (e.g. "Show" on a change made from the chat) selects that slide.
+  const [seenFocus, setSeenFocus] = useState(null);
+  if (focus && focus !== seenFocus) {
+    setSeenFocus(focus);
+    setActiveSlide(focus.index);
+  }
 
   const saveOutline = useCallback((updatedGen) => {
     clearTimeout(saveTimer.current);
@@ -1284,7 +1298,7 @@ export default function Review() {
   const hasSpeakerNotes = layout !== 'title' && layout !== 'closing' && layout !== 'section_divider';
 
   return (
-    <main className="h-[calc(100vh-48px)] flex flex-col overflow-hidden">
+    <main className="h-full flex flex-col overflow-hidden bg-white">
       {/* Top bar */}
       <div className="shrink-0 px-4 py-2 border-b border-border bg-white flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -1303,9 +1317,6 @@ export default function Review() {
               Writing stopped. Retry
             </button>
           )}
-          <Link to={`/create/deck/${id}/outline`} className="text-[12px] text-slate flex items-center gap-1 no-underline hover:text-navy">
-            <Pencil size={11} />Outline
-          </Link>
           <span className="text-[12px] text-slate hidden sm:inline">{slides.length} slides</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -1334,12 +1345,18 @@ export default function Review() {
             <Download size={13} /><span className="hidden sm:inline">PPTX</span>
           </a>
           <div className="w-px h-4 bg-border mx-0.5" />
-          <button type="button" onClick={() => setChatOpen(!chatOpen)} title="Toggle edit chat"
-            className={`p-1.5 rounded-md cursor-pointer border-0 transition-colors ${
-              chatOpen ? 'text-navy bg-[#EAF0F8]' : 'text-slate hover:text-navy hover:bg-canvas bg-transparent'
-            }`}>
-            <MessageSquare size={15} />
-          </button>
+          {onToggleExpand && (
+            <button type="button" onClick={onToggleExpand} title={expanded ? 'Back to the chat' : 'Full screen'}
+              className="p-1.5 rounded-md text-slate hover:text-navy hover:bg-canvas cursor-pointer bg-transparent border-0">
+              {expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            </button>
+          )}
+          {onClose && (
+            <button type="button" onClick={onClose} title="Close"
+              className="p-1.5 rounded-md text-slate hover:text-navy hover:bg-canvas cursor-pointer bg-transparent border-0">
+              <X size={15} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -1350,7 +1367,7 @@ export default function Review() {
           <ol className="list-none m-0 p-0 flex flex-col gap-1">
             {slides.map((s, i) => (
               <li key={i} className="group/item relative">
-                <button type="button" onClick={() => { setActiveSlide(i); setAddAfter(null); }}
+                <button type="button" onClick={() => setActiveSlide(i)}
                   className={`w-full flex flex-col lg:flex-row gap-1 lg:gap-2 items-center min-h-[40px] px-1 lg:px-1.5 py-1 rounded-lg text-left cursor-pointer border-2 transition-all ${
                     i === activeSlide ? 'border-navy bg-[#F5F8FC] shadow-sm' : 'border-transparent hover:bg-[#F0F4F8] hover:border-[#E2E8F0]'
                   }`}>
@@ -1371,7 +1388,7 @@ export default function Review() {
                   </button>
                 )}
                 {/* Add a slide here: shown between slides on hover */}
-                <button type="button" onClick={() => { setAddAfter(i); setChatOpen(true); setPanelTab('item'); }}
+                <button type="button" onClick={() => onAddAfter?.(i)}
                   title={`Add a slide after slide ${i + 1}`}
                   className={`absolute left-1/2 -translate-x-1/2 -bottom-2.5 z-10 w-5 h-5 rounded-full bg-white border border-border text-slate hover:text-navy hover:border-navy cursor-pointer flex items-center justify-center ${
                     addAfter === i ? 'opacity-100 border-navy text-navy' : 'opacity-0 group-hover/item:opacity-100'}`}>
@@ -1384,6 +1401,12 @@ export default function Review() {
 
         {/* Slide preview — center, fills remaining space */}
         <div className="flex-1 min-w-0 flex flex-col bg-[#E8ECF0] overflow-hidden">
+          <ItemToolbar key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
+            documentIds={gen.source_document_ids || []}
+            onAsk={(instruction, label) => onAsk?.(instruction, label, activeSlide)}
+            onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }}
+            onAddFigure={(f) => updateSlideField('pictures', [...(content?.pictures || []),
+              newPicture(f, { slide: true, layout, existing: (content?.pictures || []).length })])} />
           <SlideFitContainer>
             <article className="rounded-lg shadow-lg overflow-hidden relative bg-white w-full h-full" style={templateStyle(template)}>
               <SlideFrame noPad={layout === 'title' || layout === 'closing' || layout === 'section_divider'}>
@@ -1420,43 +1443,6 @@ export default function Review() {
           )}
         </div>
 
-        {/* Edit chat — right panel (toggleable) */}
-        {chatOpen && (
-          <div className="w-[280px] shrink-0 border-l border-border bg-white flex flex-col overflow-hidden">
-            <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
-              <div className="flex gap-1 p-0.5 bg-canvas rounded-md">
-                {[['item', 'This slide'], ['deck', 'Whole deck']].map(([value, label]) => (
-                  <button key={value} type="button" onClick={() => setPanelTab(value)}
-                    className={`px-2 py-1 rounded text-[12px] border-0 cursor-pointer ${
-                      panelTab === value ? 'bg-white text-navy font-semibold shadow-sm' : 'bg-transparent text-slate'}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <button type="button" onClick={() => setChatOpen(false)}
-                className="p-1 rounded text-slate hover:text-navy hover:bg-canvas cursor-pointer bg-transparent border-0">
-                <X size={14} />
-              </button>
-            </div>
-            {panelTab === 'deck' ? (
-              <AgentPanel type="deck" genId={id} gen={gen} setGen={setGen} />
-            ) : addAfter !== null ? (
-              <AddItemForm type="deck" genId={id} after={addAfter} onCancel={() => setAddAfter(null)}
-                onAdded={async (index) => {
-                  const r = await generations.get(id);
-                  setGen(r.generation);
-                  setActiveSlide(index);
-                  setAddAfter(null);
-                }} />
-            ) : (
-              <ItemPanel key={activeSlide} type="deck" genId={id} index={activeSlide} item={slides[activeSlide]}
-                documentIds={gen.source_document_ids || []}
-                onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }}
-                onAddFigure={(f) => updateSlideField('pictures', [...(content?.pictures || []),
-                  newPicture(f, { slide: true, layout, existing: (content?.pictures || []).length })])} />
-            )}
-          </div>
-        )}
       </div>
       <DeletedToast removed={itemDelete.removed} noun="slide" onUndo={itemDelete.undo} onClose={itemDelete.dismiss} />
     </main>

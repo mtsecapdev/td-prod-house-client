@@ -292,7 +292,7 @@ function UseInDialog({ figure, onClose }) {
                 {done.index != null && <> as {done.g.type === 'deck' ? 'slide' : 'section'} {done.index + 1}</>}.</p>
               <div className="flex gap-2 justify-end">
                 <button type="button" onClick={onClose} className="btn-ghost">Close</button>
-                <Link to={`/create/${done.g.type}/${done.g.id}/review`} className="btn-primary no-underline">Open it</Link>
+                <Link to={`/g/${done.g.id}`} className="btn-primary no-underline">Open it</Link>
               </div>
             </>
           ) : gens === null ? <p className="hint m-0">Loading…</p> : gens.length === 0 ? (

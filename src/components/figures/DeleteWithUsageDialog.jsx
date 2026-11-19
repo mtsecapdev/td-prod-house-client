@@ -39,7 +39,7 @@ export default function DeleteWithUsageDialog({ title, what, plural = false, usa
             <ul className="m-0 pl-5 text-[14px] flex flex-col gap-1 max-h-[180px] overflow-y-auto">
               {usage.map((u, i) => (
                 <li key={i}>
-                  <Link to={`/create/${u.type}/${u.generation_id}/review`} className="text-cobalt">{u.name}</Link>
+                  <Link to={`/g/${u.generation_id}`} className="text-cobalt">{u.name}</Link>
                   <span className="text-slate">, {NOUN[u.type] || 'item'} {u.index + 1}</span>
                 </li>
               ))}

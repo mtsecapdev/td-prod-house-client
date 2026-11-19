@@ -78,9 +78,3 @@ export function typeLabel(kind, key) {
   if (key === 'figure') return 'Figure';
   return kind.options.find((o) => o.key === key)?.label || key;
 }
-
-/** Where a deck or document should open, given how far it has got. */
-export function resumePath(g) {
-  const base = `/create/${g.type}/${g.id}`;
-  return ['writing', 'generating', 'done'].includes(g.status) ? `${base}/review` : `${base}/outline`;
-}

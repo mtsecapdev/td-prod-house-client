@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
-  ArrowLeft, ChevronUp, ChevronDown, Plus, Trash2, X, Search, RefreshCw, Loader2, Layout, FileText, Sparkles,
+  ChevronUp, ChevronDown, Plus, Trash2, X, Search, RefreshCw, Loader2, Layout, FileText, Sparkles, Settings2,
 } from 'lucide-react';
 import { generations } from '../../services/api';
-import { KIND, TEXT_AMOUNTS, typeLabel } from '../../components/plan/kindConfig';
-import FigureImage from '../../components/figures/FigureImage';
-import JobCard from '../../components/plan/JobCard';
-import { usePlanGeneration, jobRunning, jobFailed } from '../../components/plan/usePlanGeneration';
+import { KIND, TEXT_AMOUNTS, typeLabel } from '../plan/kindConfig';
+import FigureImage from '../figures/FigureImage';
+import JobCard from '../plan/JobCard';
+import { usePlanGeneration, jobRunning, jobFailed } from '../plan/usePlanGeneration';
 
 const SAVE_DELAY_MS = 700;
 
@@ -122,19 +121,31 @@ function Sources({ kind, genId, index, item, onChange }) {
   );
 }
 
+// A textarea as tall as its text, so a slide's points never scroll inside a small box.
+function GrowingTextarea(props) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = '0';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [props.value]);
+  return <textarea ref={ref} rows={1} {...props} />;
+}
+
 function Card({ kind, genId, item, index, total, onChange, onMove, onRemove }) {
   const [picker, setPicker] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const bullets = (item.bullets || []).join('\n');
 
   return (
-    <li className="card p-4 flex gap-3">
-      <span className="w-7 h-7 rounded-md bg-[#EAF0F8] text-navy text-[13px] font-semibold flex items-center justify-center shrink-0">{index + 1}</span>
+    <li className="bg-white border border-border rounded-lg p-3 flex gap-2.5">
+      <span className="w-6 h-6 rounded-md bg-[#EAF0F8] text-navy text-[12px] font-semibold flex items-center justify-center shrink-0">{index + 1}</span>
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <input className="w-full bg-transparent border-0 outline-none text-[16px] font-semibold rounded-sm px-1 py-0.5 focus:bg-canvas"
+        <input className="w-full bg-transparent border-0 outline-none text-[14px] font-semibold rounded-sm px-1 py-0.5 focus:bg-canvas"
           value={item.title} onChange={(e) => onChange({ title: e.target.value })} aria-label="Title" />
-        <textarea className="w-full bg-transparent border-0 outline-none text-[14px] text-ink leading-relaxed rounded-sm px-1 py-0.5 focus:bg-canvas resize-none"
-          rows={Math.max(2, (item.bullets || []).length)} value={bullets} aria-label="Bullets, one per line"
+        <GrowingTextarea className="w-full bg-transparent border-0 outline-none text-[13px] text-ink leading-relaxed rounded-sm px-1 py-0.5 focus:bg-canvas resize-none overflow-hidden"
+          value={bullets} aria-label="Bullets, one per line"
           onChange={(e) => onChange({ bullets: e.target.value.split('\n') })}
           placeholder="What it should cover, one point per line" />
         {item[kind.typeKey] === 'figure' && item.figure_id && (
@@ -171,9 +182,9 @@ function Card({ kind, genId, item, index, total, onChange, onMove, onRemove }) {
         {showSources && <Sources kind={kind} genId={genId} index={index} item={item} onChange={onChange} />}
       </div>
       <div className="flex flex-col shrink-0">
-        <button type="button" onClick={() => onMove(-1)} disabled={index === 0} className="icon-btn" aria-label="Move up"><ChevronUp size={16} /></button>
-        <button type="button" onClick={() => onMove(1)} disabled={index === total - 1} className="icon-btn" aria-label="Move down"><ChevronDown size={16} /></button>
-        <button type="button" onClick={onRemove} className="icon-btn" aria-label={`Remove ${kind.noun}`}><Trash2 size={15} /></button>
+        <button type="button" onClick={() => onMove(-1)} disabled={index === 0} className="icon-btn w-8 h-8" aria-label="Move up"><ChevronUp size={16} /></button>
+        <button type="button" onClick={() => onMove(1)} disabled={index === total - 1} className="icon-btn w-8 h-8" aria-label="Move down"><ChevronDown size={16} /></button>
+        <button type="button" onClick={onRemove} className="icon-btn w-8 h-8" aria-label={`Remove ${kind.noun}`}><Trash2 size={15} /></button>
       </div>
     </li>
   );
@@ -193,12 +204,15 @@ function Pills({ options, value, onChange }) {
   );
 }
 
-export default function OutlinePlan() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const kind = KIND[useLocation().pathname.includes('/doc/') ? 'doc' : 'deck'];
+/**
+ * The plan for a deck/document made in the chat: the outline (edit titles and points, layouts, sources, order)
+ * and the settings, then Generate, which opens the editor beside the chat where it is written.
+ */
+export default function PlanCard({ id, type, onOpen }) {
+  const kind = KIND[type];
   const [items, setItems] = useState(null);
   const [brief, setBrief] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -262,108 +276,93 @@ export default function OutlinePlan() {
     setError(null);
     try {
       await Promise.all([outlineSaver.flush(), briefSaver.flush()]);
-      navigate(`/create/${kind.type}/${id}/review`);
+      onOpen();
     } catch (err) {
       setError(err.message);
-      setBusy(false);
     }
+    setBusy(false);
   }
 
-  if (!gen) return <main className="max-w-[1180px] w-[92%] mx-auto py-8"><p className="hint">Loading...</p></main>;
+  if (!gen) return <p className="hint text-[13px] m-0">Loading the plan…</p>;
 
   const toWrite = (items || []).filter((it) => !it.content).length;
   const countOptions = [];
   for (let n = kind.countRange[0]; n <= kind.countRange[1]; n++) countOptions.push(n);
 
   return (
-    <main className="max-w-[1180px] w-[92%] mx-auto py-8 flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <Link to="/" className="btn-ghost"><ArrowLeft size={18} />Home</Link>
-      </div>
-
-      <div>
-        <h1 className="font-heading text-[32px] leading-10 font-bold tracking-tight m-0">Outline</h1>
-        <p className="text-[15px] text-slate mt-1.5 mb-0">
-          Edit titles and points, change layouts, reorder or add {kind.nounPlural}. Then generate.
-        </p>
-      </div>
-
-      {brief && (
-        <section className="card p-4 flex flex-col gap-3">
-          <textarea className="field min-h-[60px] text-[15px]" value={brief.topic || ''} aria-label="Prompt"
-            onChange={(e) => setBriefField('topic', e.target.value)} disabled={planning} />
-          <div className="flex items-center gap-3 flex-wrap">
-            <label className="flex items-center gap-2 text-[13px] text-slate">
-              {kind.nounPlural[0].toUpperCase() + kind.nounPlural.slice(1)}
-              <select className="field py-1 w-[84px]" value={brief.count || kind.defaultCount} disabled={planning}
-                onChange={(e) => setBriefField('count', Number(e.target.value))}>
-                {countOptions.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </label>
-            <button type="button" onClick={regenerate} disabled={planning} className="btn-outline text-[13px] ml-auto">
-              <RefreshCw size={14} />Regenerate outline
-            </button>
-          </div>
-        </section>
-      )}
-
+    <div className="flex flex-col gap-3">
       {(planning || failed) && (
         <JobCard running={planning} error={failed}
-          runningText="Writing the outline..."
-          detail="Reading your documents and planning each section. This takes 30-90 seconds."
+          runningText={`Planning the ${kind.product}…`}
+          detail="Reading the conversation and your documents. This takes 30-90 seconds."
           onRetry={regenerate} />
       )}
 
       {!planning && !failed && items && brief && (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
-          <div className="flex flex-col gap-3 min-w-0">
-            <ol className="list-none m-0 p-0 flex flex-col gap-3">
-              {items.map((it, i) => (
-                <Card key={it.id || i} kind={kind} genId={id} item={it} index={i} total={items.length}
-                  onChange={(patch) => updateItem(i, patch)} onMove={(dir) => move(i, dir)}
-                  onRemove={() => saveItems(items.filter((_, j) => j !== i))} />
-              ))}
-            </ol>
-            <button type="button" onClick={add} className="btn-outline self-start"><Plus size={15} />Add {kind.noun}</button>
+        <>
+          <p className="text-[13px] text-slate m-0">
+            Here is the plan: {items.length} {kind.nounPlural}. Edit anything, then generate.
+          </p>
+          <ol className="list-none m-0 p-0 flex flex-col gap-2">
+            {items.map((it, i) => (
+              <Card key={it.id || i} kind={kind} genId={id} item={it} index={i} total={items.length}
+                onChange={(patch) => updateItem(i, patch)} onMove={(dir) => move(i, dir)}
+                onRemove={() => saveItems(items.filter((_, j) => j !== i))} />
+            ))}
+          </ol>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" onClick={add} className="btn-ghost text-[13px]"><Plus size={14} />Add {kind.noun}</button>
+            <button type="button" onClick={() => setSettingsOpen(!settingsOpen)} className="btn-ghost text-[13px]" aria-expanded={settingsOpen}>
+              <Settings2 size={14} />Settings
+            </button>
+            <button type="button" onClick={regenerate} className="btn-ghost text-[13px]"><RefreshCw size={14} />Plan again</button>
+            <span className="flex-1" />
+            <button type="button" onClick={handleGenerate} disabled={busy || !items.length} className="btn-primary">
+              <Sparkles size={15} />
+              {toWrite === 0 ? `Open the ${kind.product}` : toWrite === items.length ? 'Generate' : `Generate ${toWrite} changed`}
+            </button>
           </div>
 
-          <aside className="card p-5 flex flex-col gap-5 lg:sticky lg:top-4">
-            <h2 className="font-heading text-[16px] font-semibold m-0">Settings</h2>
-            <div className="flex flex-col gap-2">
-              <span className="label">Text amount</span>
-              <Pills options={TEXT_AMOUNTS} value={brief.text_amount || 'concise'} onChange={(v) => setBriefField('text_amount', v)} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="audience" className="label">Audience</label>
-              <input id="audience" className="field text-[14px]" value={brief.audience || ''}
-                onChange={(e) => setBriefField('audience', e.target.value)} placeholder="Who it is for" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="tone" className="label">Tone</label>
-              <input id="tone" className="field text-[14px]" value={brief.tone || ''}
-                onChange={(e) => setBriefField('tone', e.target.value)} placeholder="e.g. clear, practical, friendly" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <span className="label">{kind.type === 'deck' ? 'Used as' : 'Kind of document'}</span>
-              <Pills options={kind.formats} value={brief.format || kind.formats[0].value} onChange={(v) => setBriefField('format', v)} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="instructions" className="label">Extra instructions</label>
-              <textarea id="instructions" className="field text-[14px] min-h-[72px]" value={brief.instructions || ''}
-                onChange={(e) => setBriefField('instructions', e.target.value)}
-                placeholder='e.g. "use the Keramika example", "avoid jargon"' />
-            </div>
-            {error && <p className="text-red-700 text-[13px] m-0">{error}</p>}
-            <button type="button" onClick={handleGenerate} disabled={busy || !items.length} className="btn-primary">
-              <Sparkles size={16} />
-              {busy ? 'Opening...' : toWrite === 0 ? `Open the ${kind.product}` : toWrite === items.length ? 'Generate' : `Generate ${toWrite} changed`}
-            </button>
-            <p className="hint text-[12px] m-0 -mt-2">
-              About 30 seconds per {kind.noun}. {kind.nounPlural[0].toUpperCase() + kind.nounPlural.slice(1)} appear as they are written.
-            </p>
-          </aside>
-        </div>
+          {settingsOpen && (
+            <section className="bg-white border border-border rounded-lg p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="label">What it covers</span>
+                <textarea className="field text-[13px] min-h-[56px]" value={brief.topic || ''} onChange={(e) => setBriefField('topic', e.target.value)} />
+                <span className="hint text-[12px]">Changing this or the number of {kind.nounPlural} needs “Plan again”.</span>
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="label">{kind.nounPlural[0].toUpperCase() + kind.nounPlural.slice(1)}</span>
+                <select className="field py-1.5 text-[13px]" value={brief.count || kind.defaultCount}
+                  onChange={(e) => setBriefField('count', Number(e.target.value))}>
+                  {countOptions.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+              <div className="flex flex-col gap-1.5">
+                <span className="label">Text amount</span>
+                <Pills options={TEXT_AMOUNTS} value={brief.text_amount || 'concise'} onChange={(v) => setBriefField('text_amount', v)} />
+              </div>
+              <label className="flex flex-col gap-1.5">
+                <span className="label">Audience</span>
+                <input className="field text-[13px]" value={brief.audience || ''} onChange={(e) => setBriefField('audience', e.target.value)} placeholder="Who it is for" />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="label">Tone</span>
+                <input className="field text-[13px]" value={brief.tone || ''} onChange={(e) => setBriefField('tone', e.target.value)} placeholder="e.g. clear, practical, friendly" />
+              </label>
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="label">{kind.type === 'deck' ? 'Used as' : 'Kind of document'}</span>
+                <Pills options={kind.formats} value={brief.format || kind.formats[0].value} onChange={(v) => setBriefField('format', v)} />
+              </div>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="label">Extra instructions</span>
+                <textarea className="field text-[13px] min-h-[56px]" value={brief.instructions || ''}
+                  onChange={(e) => setBriefField('instructions', e.target.value)} placeholder='e.g. "use the energy cell example", "avoid jargon"' />
+              </label>
+            </section>
+          )}
+          {error && <p className="text-red-700 text-[13px] m-0">{error}</p>}
+        </>
       )}
-    </main>
+    </div>
   );
 }

@@ -16,7 +16,8 @@ export function UploadProvider({ children }) {
   const [uploadFileName, setUploadFileName] = useState('');
   const onDoneRef = useRef(null);
 
-  const startUpload = useCallback((file, onDone) => {
+  /** onDone(docId | null) when processing ends; onStarted() once the document exists (it can be listed). */
+  const startUpload = useCallback((file, onDone, onStarted) => {
     setUploading(true);
     setUploadPhase(null);
     setUploadMsg('');
@@ -25,6 +26,7 @@ export function UploadProvider({ children }) {
     onDoneRef.current = onDone || null;
 
     documents.uploadStream(file, (evt) => {
+      if (evt.phase === 'uploaded') onStarted?.();
       setUploadPhase(evt.phase);
       setUploadMsg(evt.message || '');
       if (evt.phase === 'converting' && evt.total > 1) {
@@ -35,7 +37,7 @@ export function UploadProvider({ children }) {
         setUploadProgress(phaseWeights[evt.phase]);
       }
       if (evt.phase === 'done' || evt.phase === 'error') {
-        onDoneRef.current?.();
+        onDoneRef.current?.(evt.phase === 'done' ? evt.docId : null);
         setTimeout(() => {
           setUploading(false);
           setUploadPhase(null);

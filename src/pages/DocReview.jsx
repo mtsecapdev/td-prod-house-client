@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, MessageSquare, ExternalLink, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Undo2, Redo2, Download, BookmarkPlus, Check, Plus, X, AlertTriangle, ExternalLink, Loader2, Trash2, Maximize2, Minimize2 } from 'lucide-react';
 import { generations, assets } from '../services/api';
 import DiagramCodePanel from '../components/DiagramCodePanel';
-import ItemPanel from '../components/plan/ItemPanel';
-import AddItemForm from '../components/plan/AddItemForm';
+import ItemToolbar from '../components/plan/ItemToolbar';
 import Pictures from '../components/figures/Pictures';
 import { newPicture } from '../components/figures/pictureLayout';
 import AdjustableImage from '../components/figures/AdjustableImage';
 import TemplateMenu from '../components/plan/TemplateMenu';
-import AgentPanel from '../components/plan/AgentPanel';
 import { useLiveWrite } from '../components/plan/useLiveWrite';
 import { useItemDelete, shiftedHistory } from '../components/plan/useItemDelete';
 import DeletedToast from '../components/plan/DeletedToast';
@@ -202,7 +199,7 @@ function KeyPointsSection({ content, onField, onPoint, onAddPoint, onRemovePoint
   );
 }
 
-function ReferenceTableSection({ content, onField, onCell, onAddRow, onRemoveRow, onAddColumn, onRemoveColumn, onColumnHeader }) {
+function ReferenceTableSection({ content, onField, onCell, onAddRow, onRemoveRow, onAddColumn, onColumnHeader }) {
   const columns = content.columns || [];
   const rows = content.rows || [];
   return (
@@ -371,13 +368,13 @@ function DiagramSection({ content, genId, templateId, onField, onApplyCode }) {
   );
 }
 
-export default function DocReview() {
-  const { id } = useParams();
+/**
+ * The training document editor, shown beside the chat. Like the deck editor, changes are asked for in the chat:
+ * the selected section goes out through onSelect, "+" through onAddAfter, quick actions through onAsk.
+ */
+export default function DocReview({ id, reloadKey = 0, addAfter = null, focus = null, onSelect, onAddAfter, onAsk, onClose, expanded, onToggleExpand }) {
   const [gen, setGen] = useState(null);
   const [activeSection, setActiveSection] = useState(0);
-  const [chatOpen, setChatOpen] = useState(true);
-  const [panelTab, setPanelTab] = useState('item'); // 'item' | 'deck' (agent)
-  const [addAfter, setAddAfter] = useState(null); // index the "+" was pressed after, or null
   const [saving, setSaving] = useState(false);
   const [savedToLibrary, setSavedToLibrary] = useState(false);
   const [savingToLibrary, setSavingToLibrary] = useState(false);
@@ -404,8 +401,27 @@ export default function DocReview() {
   }, []);
 
   useEffect(() => {
-    generations.get(id).then(({ generation }) => setGen(generation));
-  }, [id]);
+    generations.get(id).then(({ generation }) => setGen(generation)).catch(() => {});
+  }, [id, reloadKey]);
+
+  // While a change asked for in the chat is applied (a background job), refresh so sections change in place.
+  const jobRunning = gen?.job?.state === 'running' && live.phase !== 'writing';
+  useEffect(() => {
+    if (!jobRunning) return undefined;
+    const t = setInterval(() => generations.get(id).then(({ generation }) => setGen(generation)).catch(() => {}), 2500);
+    return () => clearInterval(t);
+  }, [jobRunning, id]);
+
+  useEffect(() => { onSelect?.(activeSection); }, [activeSection]); // eslint-disable-line react-hooks/exhaustive-deps
+  // focus ({ index }) selects a section and scrolls to it, e.g. "Show" on a change made from the chat.
+  const [seenFocus, setSeenFocus] = useState(null);
+  if (focus && focus !== seenFocus) {
+    setSeenFocus(focus);
+    setActiveSection(focus.index);
+  }
+  useEffect(() => {
+    if (focus) sectionRefs.current[focus.index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [focus]);
 
   const saveOutline = useCallback((updatedGen) => {
     clearTimeout(saveTimer.current);
@@ -488,7 +504,7 @@ export default function DocReview() {
   });
 
   if (!gen || !gen.outline?.sections) {
-    return <main className="h-[calc(100vh-48px)] flex items-center justify-center"><p className="hint">Loading...</p></main>;
+    return <main className="h-full flex items-center justify-center"><p className="hint">Loading...</p></main>;
   }
 
   const sections = gen.outline.sections;
@@ -580,14 +596,8 @@ export default function DocReview() {
       onRemoveRow: (idx) => {
         updateFieldAt(secIdx, 'rows', c.rows.filter((_, i) => i !== idx));
       },
-      onAddColumn: () => {
-        updateFieldAt(secIdx, 'columns', [...c.columns, 'New']);
-        updateFieldAt(secIdx, 'rows', c.rows.map((r) => [...r, '']));
-      },
-      onRemoveColumn: (idx) => {
-        updateFieldAt(secIdx, 'columns', c.columns.filter((_, i) => i !== idx));
-        updateFieldAt(secIdx, 'rows', c.rows.map((r) => r.filter((_, i) => i !== idx)));
-      },
+      // Columns and rows change together (one save, one undo step).
+      onAddColumn: () => updateFieldsAt(secIdx, { columns: [...c.columns, 'New'], rows: c.rows.map((r) => [...r, '']) }),
       // Summary
       onRecapPoint: (idx, value) => {
         updateFieldAt(secIdx, 'recap_points', c.recap_points.map((p, i) => i === idx ? value : p));
@@ -635,7 +645,6 @@ export default function DocReview() {
 
   function scrollToSection(i) {
     setActiveSection(i);
-    setAddAfter(null);
     sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -681,7 +690,7 @@ export default function DocReview() {
       case 'reference_table':
         return <ReferenceTableSection content={c} onField={h.onField}
           onCell={h.onCell} onAddRow={h.onAddRow} onRemoveRow={h.onRemoveRow}
-          onAddColumn={h.onAddColumn} onRemoveColumn={h.onRemoveColumn} onColumnHeader={h.onColumnHeader} />;
+          onAddColumn={h.onAddColumn} onColumnHeader={h.onColumnHeader} />;
       case 'diagram':
         return <DiagramSection content={c} genId={id} templateId={template?.id} onField={h.onField}
           onApplyCode={(code, key) => updateFieldsAt(secIdx, { mermaid_code: code, diagram_file: key })} />;
@@ -697,7 +706,7 @@ export default function DocReview() {
   }
 
   return (
-    <main className="h-[calc(100vh-48px)] flex flex-col overflow-hidden">
+    <main className="h-full flex flex-col overflow-hidden bg-white">
       {/* Top bar */}
       <div className="shrink-0 px-4 py-2 border-b border-border bg-white flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -716,9 +725,6 @@ export default function DocReview() {
               Writing stopped. Retry
             </button>
           )}
-          <Link to={`/create/doc/${id}/outline`} className="text-[12px] text-slate flex items-center gap-1 no-underline hover:text-navy">
-            <Pencil size={11} />Outline
-          </Link>
           <span className="text-[12px] text-slate hidden sm:inline">{sections.length} sections</span>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -747,12 +753,18 @@ export default function DocReview() {
             <Download size={13} /><span className="hidden sm:inline">DOCX</span>
           </a>
           <div className="w-px h-4 bg-border mx-0.5" />
-          <button type="button" onClick={() => setChatOpen(!chatOpen)} title="Toggle edit chat"
-            className={`p-1.5 rounded-md cursor-pointer border-0 transition-colors ${
-              chatOpen ? 'text-navy bg-[#EAF0F8]' : 'text-slate hover:text-navy hover:bg-canvas bg-transparent'
-            }`}>
-            <MessageSquare size={15} />
-          </button>
+          {onToggleExpand && (
+            <button type="button" onClick={onToggleExpand} title={expanded ? 'Back to the chat' : 'Full screen'}
+              className="p-1.5 rounded-md text-slate hover:text-navy hover:bg-canvas cursor-pointer bg-transparent border-0">
+              {expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            </button>
+          )}
+          {onClose && (
+            <button type="button" onClick={onClose} title="Close"
+              className="p-1.5 rounded-md text-slate hover:text-navy hover:bg-canvas cursor-pointer bg-transparent border-0">
+              <X size={15} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -784,7 +796,7 @@ export default function DocReview() {
                   </button>
                 )}
                 {/* Add a section here: shown between sections on hover */}
-                <button type="button" onClick={() => { setAddAfter(i); setChatOpen(true); setPanelTab('item'); }}
+                <button type="button" onClick={() => onAddAfter?.(i)}
                   title={`Add a section after section ${i + 1}`}
                   className={`absolute left-1/2 -translate-x-1/2 -bottom-2.5 z-10 w-5 h-5 rounded-full bg-white border border-border text-slate hover:text-navy hover:border-navy cursor-pointer flex items-center justify-center ${
                     addAfter === i ? 'opacity-100 border-navy text-navy' : 'opacity-0 group-hover/item:opacity-100'}`}>
@@ -797,12 +809,17 @@ export default function DocReview() {
 
         {/* Document preview — center, continuous scroll */}
         <div className="flex-1 min-w-0 flex flex-col bg-[#E8ECF0] overflow-hidden">
+          <ItemToolbar key={activeSection} type="doc" genId={id} index={activeSection} item={sections[activeSection]}
+            documentIds={gen.source_document_ids || []}
+            onAsk={(instruction, label) => onAsk?.(instruction, label, activeSection)}
+            onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }}
+            onAddFigure={(f) => updateFieldAt(activeSection, 'pictures', [...(sections[activeSection]?.content?.pictures || []), newPicture(f)])} />
           <div className="flex-1 overflow-y-auto p-4 lg:p-6 min-h-0">
             <article className="bg-white rounded-lg shadow-lg max-w-[780px] mx-auto px-12 lg:px-16 py-10" style={templateStyle(template)}>
               {sections.map((s, i) => (
                 <div key={i}
                   ref={(el) => (sectionRefs.current[i] = el)}
-                  onClick={() => { if (i !== activeSection) { setActiveSection(i); setAddAfter(null); } }}
+                  onClick={() => { if (i !== activeSection) setActiveSection(i); }}
                   className={`transition-colors rounded-md cursor-pointer -mx-3 px-3 ${
                     i === activeSection ? 'bg-[#F0F4F8] ring-1 ring-navy/10' : ''
                   }`}>
@@ -813,42 +830,6 @@ export default function DocReview() {
           </div>
         </div>
 
-        {/* Edit chat — right panel (toggleable) */}
-        {chatOpen && (
-          <div className="w-[280px] shrink-0 border-l border-border bg-white flex flex-col overflow-hidden">
-            <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
-              <div className="flex gap-1 p-0.5 bg-canvas rounded-md">
-                {[['item', 'This section'], ['deck', 'Whole document']].map(([value, label]) => (
-                  <button key={value} type="button" onClick={() => setPanelTab(value)}
-                    className={`px-2 py-1 rounded text-[12px] border-0 cursor-pointer ${
-                      panelTab === value ? 'bg-white text-navy font-semibold shadow-sm' : 'bg-transparent text-slate'}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <button type="button" onClick={() => setChatOpen(false)}
-                className="p-1 rounded text-slate hover:text-navy hover:bg-canvas cursor-pointer bg-transparent border-0">
-                <X size={14} />
-              </button>
-            </div>
-            {panelTab === 'deck' ? (
-              <AgentPanel type="doc" genId={id} gen={gen} setGen={setGen} />
-            ) : addAfter !== null ? (
-              <AddItemForm type="doc" genId={id} after={addAfter} onCancel={() => setAddAfter(null)}
-                onAdded={async (index) => {
-                  const r = await generations.get(id);
-                  setGen(r.generation);
-                  setActiveSection(index);
-                  setAddAfter(null);
-                }} />
-            ) : (
-              <ItemPanel key={activeSection} type="doc" genId={id} index={activeSection} item={sections[activeSection]}
-                documentIds={gen.source_document_ids || []}
-                onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }}
-                onAddFigure={(f) => updateFieldAt(activeSection, 'pictures', [...(sections[activeSection]?.content?.pictures || []), newPicture(f)])} />
-            )}
-          </div>
-        )}
       </div>
       <DeletedToast removed={itemDelete.removed} noun="section" onUndo={itemDelete.undo} onClose={itemDelete.dismiss} />
     </main>

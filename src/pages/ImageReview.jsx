@@ -45,7 +45,7 @@ export default function ImageReview() {
   }
 
   return (
-    <main className="h-[calc(100vh-48px)] flex flex-col overflow-hidden">
+    <main className="h-full flex flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="shrink-0 border-b border-border bg-white px-4 py-2 flex items-center gap-3">
         <Link to="/" className="btn-ghost text-[14px]"><ArrowLeft size={16} />Home</Link>
