@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { PanelLeftOpen, PanelRightOpen, AlertTriangle, X, Upload, Loader2 } from 'lucide-react';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { PanelRightOpen, AlertTriangle, X, Upload, Loader2, Layers } from 'lucide-react';
 import { conversations, documents, generations } from '../services/api';
 import { KIND } from '../components/plan/kindConfig';
-import ConversationList from '../components/workspace/ConversationList';
+import RecentWork from '../components/workspace/RecentWork';
 import MessageList from '../components/workspace/MessageList';
 import Composer from '../components/workspace/Composer';
 import { useMediaQuery } from '../components/workspace/useMediaQuery';
@@ -15,9 +15,15 @@ const EDITORS = { deck: Review, doc: DocReview };
 const panelDefaults = (gid) => ({ gid, selected: 0, scope: gid ? 'item' : null, addAfter: null, focus: null, command: null, expanded: false, view: 'panel' });
 const ACCEPTED = /\.(pdf|docx|pptx|md|txt)$/i;
 
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+}
+
 /**
- * The workspace: conversations about the documents (left), the chat (middle) and, when one is open, the deck or
- * training document made in it (right). Routes: /, /c/:conversationId, /c/:conversationId/g/:generationId.
+ * The workspace: the chat and, when one is open, the deck or training document made in it beside it (the app's
+ * sidebar lists the conversations). Routes: /, /c/:conversationId, /c/:conversationId/g/:generationId.
+ * A new chat starts from a centred message box with recent work below it.
  */
 export default function Workspace() {
   const params = useParams();
@@ -25,19 +31,16 @@ export default function Workspace() {
   const gid = params.generationId ? Number(params.generationId) : null;
   const navigate = useNavigate();
 
-  const [list, setList] = useState([]);
   const [docs, setDocs] = useState([]);
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draftDocIds, setDraftDocIds] = useState(null); // documents chosen before the first message
   const [pending, setPending] = useState(null);
   const [error, setError] = useState(null);
-  const [sidebar, setSidebar] = useState(true);
-  const [drawer, setDrawer] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const wide = useMediaQuery('(min-width: 1280px)');
-  const veryWide = useMediaQuery('(min-width: 1536px)');
-  const roomy = useMediaQuery('(min-width: 768px)');
+  // Chat and deck side by side need room (the sidebar shrinks to its rail while a deck is open).
+  const wide = useMediaQuery('(min-width: 1360px)');
+  const { reloadConversations, setCompactSidebar } = useOutletContext();
   const { uploading, uploadMsg, uploadProgress, uploadFileName, startUpload } = useUpload();
   const [skill, setSkill] = useState(null);
   const [panelGen, setPanelGen] = useState(null);
@@ -60,9 +63,12 @@ export default function Workspace() {
   // Opening another deck/document resets what the panel had selected.
   if (panel.gid !== gid) setPanel(panelDefaults(gid));
 
-  const loadList = useCallback(() => conversations.list().then((d) => setList(d.conversations)).catch(() => {}), []);
   const loadDocs = useCallback(() => documents.list().then((d) => setDocs(d.docs || [])).catch(() => {}), []);
-  useEffect(() => { loadList(); loadDocs(); }, [loadList, loadDocs]);
+  useEffect(() => { loadDocs(); }, [loadDocs]);
+  useEffect(() => {
+    setCompactSidebar(Boolean(gid));
+    return () => setCompactSidebar(false);
+  }, [gid, setCompactSidebar]);
 
   useEffect(() => {
     if (!cid || conversation?.id === cid) return undefined;
@@ -154,17 +160,7 @@ export default function Workspace() {
       setError(err.message);
     }
     setPending(null);
-    loadList();
-  }
-
-  async function deleteConversation(id) {
-    try {
-      await conversations.delete(id);
-      if (id === cid) navigate('/');
-      loadList();
-    } catch (err) {
-      setError(err.message);
-    }
+    reloadConversations();
   }
 
   const Editor = panelGen && panelGen.id === gid ? EDITORS[panelGen.type] : null;
@@ -175,7 +171,32 @@ export default function Workspace() {
   // Wide screens show the chat and the open deck side by side; narrower ones show one at a time.
   const showChat = !gid || (wide ? !panel.expanded : panel.view === 'chat');
   const showPanel = Boolean(gid) && (wide || panel.view === 'panel');
-  const sidebarFits = gid ? veryWide : roomy;
+
+  const fresh = !cid && !messages.length && !pending;
+  const composer = (variant) => (
+    <div className="flex flex-col gap-2">
+      {uploading && (
+        <p className="m-0 text-[13px] text-slate flex items-center gap-1.5">
+          <Loader2 size={13} className="animate-spin text-cobalt" />
+          Adding {uploadFileName}: {uploadMsg || 'uploading'} ({uploadProgress}%)
+        </p>
+      )}
+      {error && (
+        <p className="m-0 text-[13px] text-red-700 flex items-center gap-1.5">
+          <AlertTriangle size={14} />{error}
+          <button type="button" onClick={() => setError(null)} className="ml-auto p-0.5 bg-transparent border-0 text-red-700 cursor-pointer" aria-label="Dismiss"><X size={13} /></button>
+        </p>
+      )}
+      <Composer variant={variant}
+        docs={docs} docIds={docIds} onDocIdsChange={setDocIds} onDocsChanged={docsChanged}
+        skill={skill} onSkill={setSkill}
+        edit={editing}
+        onEditScope={(scope) => setPanel((p) => ({ ...p, scope }))}
+        onStopEditing={() => setPanel((p) => ({ ...p, scope: null, addAfter: null }))}
+        disabled={Boolean(pending)}
+        onSend={(text, skillOverride) => send(text, null, skillOverride)} />
+    </div>
+  );
 
   function backToChat() {
     setPanel((p) => (wide ? { ...p, expanded: !p.expanded } : { ...p, view: 'chat' }));
@@ -193,23 +214,8 @@ export default function Workspace() {
     }
   }
 
-  const conversations_ = (
-    <ConversationList items={list} activeId={cid}
-      onNew={() => { setDrawer(false); navigate('/'); }}
-      onDelete={deleteConversation}
-      onCollapse={() => { setDrawer(false); setSidebar(false); }} />
-  );
-
   return (
     <div className="h-full flex overflow-hidden bg-canvas">
-      {sidebar && showChat && sidebarFits && conversations_}
-      {drawer && !sidebarFits && (
-        <div className="fixed inset-0 z-40 flex" onClick={() => setDrawer(false)}>
-          <div className="h-full shadow-xl" onClick={(e) => e.stopPropagation()}>{conversations_}</div>
-          <div className="flex-1 bg-black/30" />
-        </div>
-      )}
-
       {showChat && (
         <section
           className={`relative min-w-0 flex flex-col ${gid && wide ? 'w-[440px] shrink-0 border-r border-border' : 'flex-1'}`}
@@ -223,69 +229,48 @@ export default function Workspace() {
               <p className="m-0 text-[13px] text-slate">PDF, Word, PowerPoint, Markdown or text</p>
             </div>
           )}
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="max-w-[780px] mx-auto px-5 py-6">
-              {(!sidebar || !sidebarFits || (gid && !wide)) && (
-                <div className="flex items-center gap-2 mb-3">
-                  {(!sidebar || !sidebarFits) && (
-                    <button type="button" onClick={() => (sidebarFits ? setSidebar(true) : setDrawer(true))} className="btn-ghost text-[13px]">
-                      <PanelLeftOpen size={15} />Conversations
-                    </button>
-                  )}
+          {fresh ? (
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="max-w-[760px] mx-auto px-5 pt-[14vh] pb-10 flex flex-col items-center gap-6">
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <span className="w-11 h-11 rounded-xl bg-navy text-white flex items-center justify-center shadow-sm"><Layers size={22} /></span>
+                  <h1 className="font-heading text-[30px] leading-9 font-bold tracking-tight text-navy m-0">{greeting()}</h1>
+                  <p className="text-[15px] text-slate m-0">Ask about your documents, then turn what you find into a slide deck, a training document or an image.</p>
+                </div>
+                <div className="w-full">{composer('hero')}</div>
+                <p className="m-0 -mt-2 text-[12px] text-slate">Drop files anywhere here to add them · type / for commands</p>
+                <div className="w-full pt-4"><RecentWork /></div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="max-w-[780px] mx-auto px-5 py-6">
                   {gid && !wide && (
-                    <button type="button" onClick={() => setPanel((p) => ({ ...p, view: 'panel' }))} className="btn-outline text-[13px] ml-auto">
-                      <PanelRightOpen size={15} />Back to the {panelGen?.type === 'doc' ? 'document' : 'deck'}
-                    </button>
+                    <div className="flex mb-3">
+                      <button type="button" onClick={() => setPanel((p) => ({ ...p, view: 'panel' }))} className="btn-outline text-[13px] ml-auto">
+                        <PanelRightOpen size={15} />Back to the {panelGen?.type === 'doc' ? 'document' : 'deck'}
+                      </button>
+                    </div>
                   )}
+                  <MessageList conversationId={conversation?.id} messages={messages} pending={pending}
+                    openGenerationId={gid}
+                    addLabel={addLabel} onAddPicture={addPicture}
+                    onOpenGeneration={(id) => navigate(`/c/${conversation.id}/g/${id}`)}
+                    onShowItem={(id, index) => {
+                      if (id !== gid) navigate(`/c/${conversation.id}/g/${id}`);
+                      setPanel((p) => ({ ...p, focus: { index }, view: 'panel' }));
+                    }}
+                    onMessageUpdated={(msg) => setMessages((ms) => ms.map((m) => (m.id === msg.id ? msg : m)))}
+                    onDeckChanged={() => setReloadKey((k) => k + 1)} />
+                  <div ref={endRef} />
                 </div>
-              )}
-              {!cid && !messages.length && !pending ? (
-                <div className="pt-[12vh] text-center flex flex-col gap-2">
-                  <h1 className="font-heading text-[28px] font-bold text-navy m-0">What are we working on?</h1>
-                  <p className="text-[15px] text-slate m-0">
-                    Ask about your documents, then turn what you find into a slide deck or a training document.
-                  </p>
-                  <p className="text-[13px] text-slate m-0 mt-2">Drop files here to add them, or type / for commands.</p>
-                </div>
-              ) : (
-                <MessageList conversationId={conversation?.id} messages={messages} pending={pending}
-                  openGenerationId={gid}
-                  addLabel={addLabel} onAddPicture={addPicture}
-                  onOpenGeneration={(id) => navigate(`/c/${conversation.id}/g/${id}`)}
-                  onShowItem={(id, index) => {
-                    if (id !== gid) navigate(`/c/${conversation.id}/g/${id}`);
-                    setPanel((p) => ({ ...p, focus: { index }, view: 'panel' }));
-                  }}
-                  onMessageUpdated={(msg) => setMessages((ms) => ms.map((m) => (m.id === msg.id ? msg : m)))}
-                  onDeckChanged={() => setReloadKey((k) => k + 1)} />
-              )}
-              <div ref={endRef} />
-            </div>
-          </div>
-          <div className="shrink-0 border-t border-border bg-canvas px-5 py-3">
-            <div className="max-w-[780px] mx-auto flex flex-col gap-2">
-              {uploading && (
-                <p className="m-0 text-[13px] text-slate flex items-center gap-1.5">
-                  <Loader2 size={13} className="animate-spin text-cobalt" />
-                  Adding {uploadFileName}: {uploadMsg || 'uploading'} ({uploadProgress}%)
-                </p>
-              )}
-              {error && (
-                <p className="m-0 text-[13px] text-red-700 flex items-center gap-1.5">
-                  <AlertTriangle size={14} />{error}
-                  <button type="button" onClick={() => setError(null)} className="ml-auto p-0.5 bg-transparent border-0 text-red-700 cursor-pointer" aria-label="Dismiss"><X size={13} /></button>
-                </p>
-              )}
-              <Composer
-                docs={docs} docIds={docIds} onDocIdsChange={setDocIds} onDocsChanged={docsChanged}
-                skill={skill} onSkill={setSkill}
-                edit={editing}
-                onEditScope={(scope) => setPanel((p) => ({ ...p, scope }))}
-                onStopEditing={() => setPanel((p) => ({ ...p, scope: null, addAfter: null }))}
-                disabled={Boolean(pending)}
-                onSend={(text, skillOverride) => send(text, null, skillOverride)} />
-            </div>
-          </div>
+              </div>
+              <div className="shrink-0 px-5 pb-4 pt-2 bg-canvas">
+                <div className="max-w-[780px] mx-auto">{composer('docked')}</div>
+              </div>
+            </>
+          )}
         </section>
       )}
 

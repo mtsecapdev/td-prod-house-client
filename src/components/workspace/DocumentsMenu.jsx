@@ -31,7 +31,7 @@ function IngestionProgress({ progress, phase }) {
  * The documents a conversation works with (tick to include), plus uploading and deleting documents.
  * selected/onChange: the conversation's document ids.
  */
-export default function DocumentsMenu({ docs, selected, onChange, onDocsChanged }) {
+export default function DocumentsMenu({ docs, selected, onChange, onDocsChanged, compact = false }) {
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const fileRef = useRef(null);
@@ -64,8 +64,10 @@ export default function DocumentsMenu({ docs, selected, onChange, onDocsChanged 
   return (
     <div ref={rootRef} className="relative">
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] border cursor-pointer ${
-          chosen.length ? 'border-border bg-white text-ink hover:bg-canvas' : 'border-amber-300 bg-amber-50 text-amber-800'}`}>
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] cursor-pointer ${
+          compact
+            ? (chosen.length ? 'border-0 bg-transparent text-slate hover:bg-[#F0F4F8] hover:text-navy' : 'border-0 bg-amber-50 text-amber-800')
+            : `border ${chosen.length ? 'border-border bg-white text-ink hover:bg-canvas' : 'border-amber-300 bg-amber-50 text-amber-800'}`}`}>
         <Paperclip size={14} />{label}<ChevronDown size={13} />
       </button>
       {open && (

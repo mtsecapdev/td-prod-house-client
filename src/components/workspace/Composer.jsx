@@ -26,8 +26,9 @@ const SKILLS = [
 export default function Composer({
   docs, docIds, onDocIdsChange, onDocsChanged,
   skill, onSkill, edit, onEditScope, onStopEditing,
-  disabled, onSend,
+  disabled, onSend, variant = 'docked',
 }) {
+  const hero = variant === 'hero';
   const [text, setText] = useState('');
   const [picked, setPicked] = useState(0);
   const ref = useRef(null);
@@ -48,8 +49,8 @@ export default function Composer({
     const el = ref.current;
     if (!el) return;
     el.style.height = '0';
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-  }, [text]);
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, hero ? 56 : 24), 220)}px`;
+  }, [text, hero]);
 
   // Focus the box when the mode changes (a chip pressed, a slide selected for editing).
   useEffect(() => { ref.current?.focus(); }, [skill, edit?.scope, edit?.after]);
@@ -98,7 +99,7 @@ export default function Composer({
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); }
   }
 
-  const chip = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] border cursor-pointer';
+  const chip = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] border cursor-pointer transition-colors';
   return (
     <form onSubmit={submit} className="flex flex-col gap-2">
       {(skillInfo || edit) && (
@@ -133,7 +134,7 @@ export default function Composer({
         </div>
       )}
 
-      <div className="relative flex items-end gap-2 bg-white border border-border rounded-xl px-3 py-2 focus-within:border-cobalt">
+      <div className={`relative bg-white border border-[#D9E1EC] rounded-2xl shadow-[0_2px_12px_rgba(15,43,72,0.06)] focus-within:border-cobalt/60 focus-within:shadow-[0_2px_16px_rgba(37,99,235,0.12)] ${hero ? 'px-4 pt-3.5 pb-2.5' : 'px-3.5 pt-2.5 pb-2'}`}>
         {menuOpen && (
           <ul role="listbox" aria-label="Commands" className="absolute left-0 bottom-full mb-2 z-30 w-[320px] max-w-full list-none m-0 p-1 bg-white border border-border rounded-lg shadow-lg">
             {commands.map((c, i) => (
@@ -148,28 +149,27 @@ export default function Composer({
           </ul>
         )}
         <textarea ref={ref} rows={1} value={text} onChange={(e) => { setText(e.target.value); setPicked(0); }} placeholder={placeholder}
-          onKeyDown={onKeyDown}
-          className="flex-1 resize-none bg-transparent border-0 outline-none text-[14px] leading-6 py-1 placeholder:text-slate/60" />
-        <button type="submit" disabled={!canSend} aria-label="Send"
-          className="w-9 h-9 shrink-0 rounded-lg bg-navy text-white flex items-center justify-center border-0 cursor-pointer disabled:opacity-40 disabled:cursor-default">
-          <Send size={16} />
-        </button>
+          onKeyDown={onKeyDown} aria-label="Message"
+          className={`block w-full resize-none bg-transparent border-0 outline-none leading-6 placeholder:text-slate/60 ${hero ? 'text-[15px]' : 'text-[14px]'}`} />
+        <div className="flex items-center justify-between gap-2 mt-1.5">
+          <DocumentsMenu compact docs={docs} selected={docIds} onChange={onDocIdsChange} onDocsChanged={onDocsChanged} />
+          <button type="submit" disabled={!canSend} aria-label="Send"
+            className="w-9 h-9 shrink-0 rounded-xl bg-navy text-white flex items-center justify-center border-0 cursor-pointer hover:bg-[var(--color-navy-hover)] disabled:bg-[#C5CFDC] disabled:cursor-default">
+            <Send size={16} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <DocumentsMenu docs={docs} selected={docIds} onChange={onDocIdsChange} onDocsChanged={onDocsChanged} />
-        {!edit && (
-          <>
-            <span className="w-px h-5 bg-border mx-1" />
-            {SKILLS.map((s) => (
-              <button key={s.type} type="button" onClick={() => onSkill(skill === s.type ? null : s.type)} aria-pressed={skill === s.type}
-                className={`${chip} ${skill === s.type ? 'border-navy bg-[#EAF0F8] text-navy font-semibold' : 'border-border bg-white text-ink hover:bg-canvas'}`}>
-                <s.icon size={14} />{s.label}
-              </button>
-            ))}
-          </>
-        )}
-      </div>
+      {!edit && (
+        <div className={`flex items-center gap-2 flex-wrap ${hero ? 'justify-center mt-1' : ''}`}>
+          {SKILLS.map((s) => (
+            <button key={s.type} type="button" onClick={() => onSkill(skill === s.type ? null : s.type)} aria-pressed={skill === s.type}
+              className={`${chip} ${skill === s.type ? 'border-navy bg-[#EAF0F8] text-navy font-semibold' : 'border-[#D9E1EC] bg-white text-ink hover:bg-[#F6F8FB] hover:border-[#C7D3E3]'}`}>
+              <s.icon size={14} className={skill === s.type ? '' : 'text-slate'} />{s.label}
+            </button>
+          ))}
+        </div>
+      )}
     </form>
   );
 }
