@@ -230,8 +230,16 @@ export default function Workspace() {
             </div>
           )}
           {fresh ? (
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <div className="max-w-[760px] mx-auto px-5 pt-[14vh] pb-10 flex flex-col items-center gap-6">
+            <div className="relative flex-1 min-h-0 overflow-y-auto">
+              {/* A soft cobalt glow and a faint dot grid behind the greeting, fading out downwards. */}
+              <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[560px]"
+                style={{
+                  backgroundImage: 'radial-gradient(ellipse 60% 55% at 50% 0%, rgba(37,99,235,0.13), transparent 70%), radial-gradient(rgba(15,43,72,0.10) 1px, transparent 1px)',
+                  backgroundSize: '100% 100%, 22px 22px',
+                  maskImage: 'linear-gradient(to bottom, black 40%, transparent)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, black 40%, transparent)',
+                }} />
+              <div className="relative max-w-[760px] mx-auto px-5 pt-[14vh] pb-10 flex flex-col items-center gap-6">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <span className="w-11 h-11 rounded-xl bg-navy text-white flex items-center justify-center shadow-sm"><Layers size={22} /></span>
                   <h1 className="font-heading text-[30px] leading-9 font-bold tracking-tight text-navy m-0">{greeting()}</h1>

@@ -12,9 +12,9 @@ const COMMANDS = [
 const COMMAND_RE = /^\/(\w*)(?:\s+([\s\S]*))?$/;
 
 const SKILLS = [
-  { type: 'deck', label: 'Slide deck', icon: FileSliders },
-  { type: 'doc', label: 'Training document', icon: FileText },
-  { type: 'image', label: 'Image', icon: Image },
+  { type: 'deck', label: 'Slide deck', icon: FileSliders, desc: 'A training deck from your documents', tint: 'bg-[#E8EFFA] text-cobalt' },
+  { type: 'doc', label: 'Training document', icon: FileText, desc: 'A guide, reference or procedure', tint: 'bg-[#E9F5EF] text-[#047857]' },
+  { type: 'image', label: 'Image', icon: Image, desc: 'An illustration for your slides', tint: 'bg-[#F3EEFB] text-[#6D28D9]' },
 ];
 
 /**
@@ -160,8 +160,27 @@ export default function Composer({
         </div>
       </div>
 
-      {!edit && (
-        <div className={`flex items-center gap-2 flex-wrap ${hero ? 'justify-center mt-1' : ''}`}>
+      {!edit && hero && (
+        // On the start screen the skills are cards saying what each makes; in a conversation they are pills.
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+          {SKILLS.map((s) => {
+            const on = skill === s.type;
+            return (
+              <button key={s.type} type="button" onClick={() => onSkill(on ? null : s.type)} aria-pressed={on}
+                className={`group flex items-center gap-3 p-3 rounded-xl text-left cursor-pointer border transition-all ${
+                  on ? 'border-navy bg-white ring-2 ring-navy/15 shadow-sm' : 'border-[#D9E1EC] bg-white/80 hover:bg-white hover:border-[#C7D3E3] hover:shadow-sm'}`}>
+                <span className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center ${s.tint}`}><s.icon size={19} /></span>
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-semibold text-ink">{s.label}</span>
+                  <span className="block text-[12px] text-slate leading-snug">{s.desc}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {!edit && !hero && (
+        <div className="flex items-center gap-2 flex-wrap">
           {SKILLS.map((s) => (
             <button key={s.type} type="button" onClick={() => onSkill(skill === s.type ? null : s.type)} aria-pressed={skill === s.type}
               className={`${chip} ${skill === s.type ? 'border-navy bg-[#EAF0F8] text-navy font-semibold' : 'border-[#D9E1EC] bg-white text-ink hover:bg-[#F6F8FB] hover:border-[#C7D3E3]'}`}>
