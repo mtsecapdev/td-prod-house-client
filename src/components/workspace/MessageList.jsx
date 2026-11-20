@@ -104,7 +104,8 @@ export default function MessageList({
           <div key={m.id} className="max-w-[92%] rounded-xl rounded-bl-sm px-4 py-3 bg-white border border-border text-[14px] leading-relaxed">
             <AnswerText text={m.content} />
             <AnswerFigures figures={m.data?.figures} addLabel={addLabel} onAdd={onAddPicture} />
-            {m.data?.grounded === false && (
+            {/* Not for short one-line replies such as "Hello! How can I help?" */}
+            {m.data?.grounded === false && (m.content.length > 100 || m.content.includes('\n')) && (
               <p className="mt-2 mb-0 text-[12px] text-amber-700 flex items-center gap-1">
                 <AlertTriangle size={12} />Not found in the selected documents; this may rely on general knowledge.
               </p>
