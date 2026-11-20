@@ -10,6 +10,7 @@ const PHASES = {
   rewriting: 'Understanding the question…',
   searching: 'Searching your documents…',
   generating: 'Writing the answer…',
+  covering: 'Reading the document section by section…',
   editing: 'Rewriting…',
   writing: 'Writing the new one…',
   planning: 'Planning the changes…',
