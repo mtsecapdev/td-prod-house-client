@@ -23,23 +23,47 @@ export default function AnswerText({ text }) {
     const line = lines[i];
     if (!line.trim()) { i++; continue; }
     if (BULLET.test(line) || NUMBERED.test(line)) {
+      // One list until a line that isn't part of it. Blank lines between items don't end it, and bullets under
+      // a numbered item nest inside that item, so "1. Phase / - point / 2. Phase" keeps counting 1, 2, 3.
       const ordered = NUMBERED.test(line);
-      const re = ordered ? NUMBERED : BULLET;
+      const start = ordered ? parseInt(line, 10) || 1 : 1;
       const items = [];
-      while (i < lines.length && re.test(lines[i])) {
-        // A list item continues on following indented lines.
-        let item = lines[i].replace(re, '');
+      while (i < lines.length) {
+        if (!lines[i].trim()) {
+          const next = lines.slice(i).findIndex((l) => l.trim());
+          if (next < 0 || !(BULLET.test(lines[i + next]) || NUMBERED.test(lines[i + next]))) break;
+          i += next;
+          continue;
+        }
+        const numbered = NUMBERED.test(lines[i]);
+        const bullet = BULLET.test(lines[i]);
+        if (!numbered && !bullet) break;
+        if (!ordered && numbered) break; // a numbered list after bullets starts a new list
+        let text = lines[i].replace(numbered ? NUMBERED : BULLET, '');
         i++;
+        // A list item continues on following indented lines.
         while (i < lines.length && /^\s{2,}\S/.test(lines[i]) && !BULLET.test(lines[i]) && !NUMBERED.test(lines[i])) {
-          item += ` ${lines[i].trim()}`;
+          text += ` ${lines[i].trim()}`;
           i++;
         }
-        items.push(item);
+        if (ordered && bullet && items.length) items[items.length - 1].sub.push(text);
+        else items.push({ text, sub: [] });
       }
       const Tag = ordered ? 'ol' : 'ul';
+      const key = blocks.length;
       blocks.push(
-        <Tag key={blocks.length} className={`m-0 pl-5 flex flex-col gap-1 ${ordered ? 'list-decimal' : 'list-disc'}`}>
-          {items.map((it, j) => <li key={j}>{inline(it, `${blocks.length}-${j}`)}</li>)}
+        <Tag key={key} start={ordered && start !== 1 ? start : undefined}
+          className={`m-0 pl-5 flex flex-col gap-1 ${ordered ? 'list-decimal' : 'list-disc'}`}>
+          {items.map((it, j) => (
+            <li key={j}>
+              {inline(it.text, `${key}-${j}`)}
+              {it.sub.length > 0 && (
+                <ul className="mt-1 mb-0 pl-5 flex flex-col gap-1 list-disc">
+                  {it.sub.map((t, k) => <li key={k}>{inline(t, `${key}-${j}-${k}`)}</li>)}
+                </ul>
+              )}
+            </li>
+          ))}
         </Tag>,
       );
       continue;
