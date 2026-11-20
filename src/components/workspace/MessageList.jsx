@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, FileSliders, FileText, Image, Loader2, PencilLine } from 'lucide-react';
 import AnswerFigures from '../AnswerFigures';
 import AnswerText from './AnswerText';
+import CopyButton from './CopyButton';
 import GenerationCard from './GenerationCard';
 import AgentPlanCard from './AgentPlanCard';
 import ImageCard from './ImageCard';
@@ -104,12 +105,15 @@ export default function MessageList({
           <div key={m.id} className="max-w-[92%] rounded-xl rounded-bl-sm px-4 py-3 bg-white border border-border text-[14px] leading-relaxed">
             <AnswerText text={m.content} />
             <AnswerFigures figures={m.data?.figures} addLabel={addLabel} onAdd={onAddPicture} />
-            {/* Not for short one-line replies such as "Hello! How can I help?" */}
-            {m.data?.grounded === false && (m.content.length > 100 || m.content.includes('\n')) && (
-              <p className="mt-2 mb-0 text-[12px] text-amber-700 flex items-center gap-1">
-                <AlertTriangle size={12} />Not found in the selected documents; this may rely on general knowledge.
-              </p>
-            )}
+            <div className="mt-2 -mb-1 -mr-2 flex items-center gap-2">
+              {/* Not for short one-line replies such as "Hello! How can I help?" */}
+              {m.data?.grounded === false && (m.content.length > 100 || m.content.includes('\n')) && (
+                <p className="m-0 text-[12px] text-amber-700 flex items-center gap-1">
+                  <AlertTriangle size={12} className="shrink-0" />Not found in the selected documents; this may rely on general knowledge.
+                </p>
+              )}
+              <span className="ml-auto"><CopyButton text={m.content} /></span>
+            </div>
           </div>
         );
       })}
