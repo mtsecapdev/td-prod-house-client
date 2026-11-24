@@ -1,4 +1,18 @@
-const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+// The API is served on the app's own origin under /api (Vite forwards it in development, the web server in
+// production), so the session cookie goes with every request, images and downloads included.
+const BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+
+/** Fired when a request finds the session gone or the password still temporary (AuthContext listens). */
+export const AUTH_EVENT = 'tdph:auth';
+const PUBLIC_PATHS = ['/auth/login', '/auth/me'];
+
+function noticeAuth(res, path, json) {
+  if (PUBLIC_PATHS.includes(path)) return;
+  if (res.status === 401) window.dispatchEvent(new CustomEvent(AUTH_EVENT, { detail: 'signed-out' }));
+  if (res.status === 403 && /new password/i.test(errorMessage(json, 403))) {
+    window.dispatchEvent(new CustomEvent(AUTH_EVENT, { detail: 'must-change-password' }));
+  }
+}
 
 // The server's error responses carry the message in error.message (handled errors) or data.message (thrown ones).
 function errorMessage(json, status) {
@@ -10,8 +24,11 @@ async function request(path, options = {}) {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });
-  const json = await res.json();
-  if (!res.ok) throw new Error(errorMessage(json, res.status));
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    noticeAuth(res, path, json);
+    throw new Error(errorMessage(json, res.status));
+  }
   return json.data;
 }
 
@@ -27,7 +44,9 @@ async function stream(path, body, onEvent = () => {}, signal) {
     ...(body === undefined ? {} : isForm ? { body } : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }),
   });
   if (!res.ok && !res.headers.get('content-type')?.includes('event-stream')) {
-    throw new Error(errorMessage(await res.json().catch(() => ({})), res.status));
+    const json = await res.json().catch(() => ({}));
+    noticeAuth(res, path, json);
+    throw new Error(errorMessage(json, res.status));
   }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -46,6 +65,22 @@ async function stream(path, body, onEvent = () => {}, signal) {
     }
   }
 }
+
+export const auth = {
+  me: () => request('/auth/me'),
+  login: (username, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  logout: () => request('/auth/logout', { method: 'POST' }),
+  changePassword: (currentPassword, newPassword) =>
+    request('/auth/password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
+};
+
+// Admin: accounts. create and resetPassword return { user, temporaryPassword } (shown once).
+export const users = {
+  list: () => request('/users'),
+  create: ({ username, displayName, role }) => request('/users', { method: 'POST', body: JSON.stringify({ username, displayName, role }) }),
+  update: (id, fields) => request(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(fields) }),
+  resetPassword: (id) => request(`/users/${id}/reset-password`, { method: 'POST' }),
+};
 
 export const documents = {
   list: () => request('/documents'),

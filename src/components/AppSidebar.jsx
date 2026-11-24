@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import AccountMenu from './AccountMenu';
 import {
   Plus, Search, Library, Images, PanelLeftClose, PanelLeftOpen, MessageSquare, Trash2, FileSliders, FileText, Image, Layers,
 } from 'lucide-react';
@@ -91,6 +92,7 @@ export default function AppSidebar({ collapsed, onToggle, conversations, activeI
           <MessageSquare size={17} />
         </Link>
       )}
+      <AccountMenu collapsed={collapsed} onNavigate={onNavigate} />
     </aside>
   );
 }
