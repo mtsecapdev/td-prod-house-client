@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/auth';
-import { AuthScreen } from './SignIn';
+import { AuthScreen, AuthField, AuthButton } from './SignIn';
 
 const MIN_LENGTH = 10;
 
@@ -40,27 +40,19 @@ export default function ChangePassword({ forced = false }) {
   }
 
   const form = (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-semibold text-ink">{forced ? 'Temporary password' : 'Current password'}</span>
-        <input className="field" type="password" autoComplete="current-password" autoFocus value={current} onChange={(e) => setCurrent(e.target.value)} />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-semibold text-ink">New password</span>
-        <input className="field" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
-        <span className="text-[12px] text-slate">At least {MIN_LENGTH} characters, not containing your username. A short sentence is easy to remember.</span>
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-semibold text-ink">New password again</span>
-        <input className="field" type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} />
-      </label>
-      {(problem || error) && <p role="alert" className="m-0 text-[13px] text-red-700">{problem || error}</p>}
+    <form onSubmit={submit} className="flex flex-col gap-5">
+      <AuthField label={forced ? 'Temporary password' : 'Current password'} icon={KeyRound} password autoFocus
+        autoComplete="current-password" value={current} onChange={setCurrent} />
+      <AuthField label="New password" icon={Lock} password autoComplete="new-password" value={next} onChange={setNext}
+        hint={`At least ${MIN_LENGTH} characters, not containing your username. A short sentence is easy to remember.`} />
+      <AuthField label="New password again" icon={Lock} password autoComplete="new-password" value={again} onChange={setAgain} />
+      {(problem || error) && <p role="alert" className="m-0 -mt-1 text-[13px] text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{problem || error}</p>}
       {done && !forced && <p role="status" className="m-0 text-[13px] text-[#047857]">Password changed. You've been signed out on other devices.</p>}
-      <button type="submit" className="btn-primary justify-center" disabled={busy || Boolean(problem) || !current || !next || next !== again}>
-        <KeyRound size={16} />{busy ? 'Saving…' : 'Change password'}
-      </button>
+      <AuthButton busy={busy} disabled={Boolean(problem) || !current || !next || next !== again}>
+        {busy ? 'Saving…' : forced ? 'Save and continue' : 'Change password'}
+      </AuthButton>
       {forced && (
-        <button type="button" onClick={signOut} className="btn-ghost justify-center text-[13px]">Sign out</button>
+        <button type="button" onClick={signOut} className="btn-ghost justify-center text-[13px]">Not you? Sign out</button>
       )}
     </form>
   );
