@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layers, User, Lock, Eye, EyeOff, ArrowRight, MessagesSquare, FileSliders, ShieldCheck } from 'lucide-react';
+import { Layers, User, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/auth';
 
 /** The sign-in page. Accounts are made by an admin, so there is no sign-up here. */
@@ -26,7 +26,7 @@ export default function SignIn() {
   }
 
   return (
-    <AuthScreen title="Welcome back" subtitle="Sign in with the username and password your admin gave you.">
+    <AuthScreen title="Sign in" subtitle="Use the username and password your admin gave you.">
       <form onSubmit={submit} className="flex flex-col gap-5">
         <AuthField label="Username" icon={User} autoFocus autoComplete="username" value={username}
           onChange={setUsername} />
@@ -35,73 +35,29 @@ export default function SignIn() {
         {error && <p role="alert" className="m-0 -mt-1 text-[13px] text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
         <AuthButton busy={busy} disabled={!username.trim() || !password}>{busy ? 'Signing in…' : 'Sign in'}</AuthButton>
       </form>
-      <p className="m-0 mt-6 text-[13px] text-slate">
-        Forgot your password or need an account? Ask your admin.
-      </p>
+      <p className="m-0 mt-5 text-[13px] text-slate text-center">Forgot your password? Ask your admin.</p>
     </AuthScreen>
   );
 }
 
-const POINTS = [
-  [MessagesSquare, 'Ask questions and get answers from your own documents, with page references.'],
-  [FileSliders, 'Turn what you find into slide decks and training documents.'],
-  [ShieldCheck, 'Runs on your company network. Your documents never leave it.'],
-];
-
-/**
- * The frame of the sign-in and first-password pages: a navy brand panel beside the form (the panel folds into a
- * small header on narrow screens).
- */
+/** The frame of the sign-in and first-password pages: one card on the navy background. */
 export function AuthScreen({ title, subtitle, children }) {
   return (
-    <div className="min-h-screen flex bg-white font-body text-ink">
-      <aside className="hidden lg:flex relative w-[46%] max-w-[680px] bg-navy text-white overflow-hidden">
-        {/* The home page's cobalt glow and dot grid, on navy. */}
-        <div aria-hidden className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(ellipse 70% 55% at 20% 0%, rgba(37,99,235,0.45), transparent 70%), radial-gradient(rgba(255,255,255,0.09) 1px, transparent 1px)',
-          backgroundSize: 'auto, 22px 22px',
-        }} />
-        <div aria-hidden className="absolute -right-24 -bottom-24 w-[420px] h-[420px] rounded-full bg-cobalt/20 blur-3xl" />
-        <div className="relative flex flex-col justify-between w-full px-14 py-12">
-          <Brand light />
-          <div className="max-w-[440px]">
-            <h2 className="m-0 font-heading text-[34px] leading-tight font-bold tracking-tight">
-              Training material from the documents you already have.
-            </h2>
-            <ul className="list-none m-0 mt-8 p-0 flex flex-col gap-5">
-              {POINTS.map(([Icon, text]) => (
-                <li key={text} className="flex gap-3.5 items-start">
-                  <span className="w-9 h-9 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center shrink-0">
-                    <Icon size={17} className="text-[#93B4F8]" />
-                  </span>
-                  <span className="text-[15px] text-white/80 leading-relaxed pt-1.5">{text}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <p className="m-0 text-[12px] text-white/45">TD Prod House</p>
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-10 bg-navy font-body text-ink overflow-hidden">
+      {/* A cobalt glow and a faint dot grid, as on the home page. */}
+      <div aria-hidden className="absolute inset-0" style={{
+        backgroundImage: 'radial-gradient(ellipse 80% 70% at 0% 0%, rgba(37,99,235,0.35), transparent 70%), radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
+        backgroundSize: 'auto, 22px 22px',
+      }} />
+      <div className="relative w-[400px] max-w-full bg-white rounded-2xl shadow-2xl p-8">
+        <div className="flex items-center gap-2.5 mb-7">
+          <span className="w-9 h-9 rounded-lg bg-navy text-white flex items-center justify-center"><Layers size={18} /></span>
+          <span className="font-heading text-[20px] font-bold text-navy tracking-tight">TDPH</span>
         </div>
-      </aside>
-
-      <main className="flex-1 min-w-0 flex flex-col bg-canvas lg:bg-white">
-        <div className="lg:hidden px-6 pt-6"><Brand /></div>
-        <div className="flex-1 flex items-center justify-center px-6 py-12">
-          <div className="w-[380px] max-w-full">
-            <h1 className="m-0 font-heading text-[30px] font-bold text-navy tracking-tight">{title}</h1>
-            {subtitle && <p className="m-0 mt-2 mb-8 text-[15px] text-slate leading-relaxed">{subtitle}</p>}
-            {children}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function Brand({ light = false }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className={`w-9 h-9 rounded-lg flex items-center justify-center ${light ? 'bg-cobalt' : 'bg-navy'} text-white`}><Layers size={18} /></span>
-      <span className={`font-heading text-[20px] font-bold tracking-tight ${light ? 'text-white' : 'text-navy'}`}>TDPH</span>
+        <h1 className="m-0 font-heading text-[24px] font-bold text-navy tracking-tight">{title}</h1>
+        {subtitle && <p className="m-0 mt-1.5 mb-6 text-[14px] text-slate leading-relaxed">{subtitle}</p>}
+        {children}
+      </div>
     </div>
   );
 }
@@ -135,10 +91,9 @@ export function AuthField({ label, icon: Icon, password = false, value, onChange
 export function AuthButton({ busy, disabled, children }) {
   return (
     <button type="submit" disabled={busy || disabled}
-      className="group h-12 rounded-lg bg-cobalt hover:bg-cobalt-hover text-white text-[15px] font-semibold border-0 cursor-pointer
+      className="h-12 rounded-lg bg-cobalt hover:bg-cobalt-hover text-white text-[15px] font-semibold border-0 cursor-pointer
         flex items-center justify-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
       {children}
-      {!busy && <ArrowRight size={17} className="transition-transform group-enabled:group-hover:translate-x-0.5" />}
     </button>
   );
 }
