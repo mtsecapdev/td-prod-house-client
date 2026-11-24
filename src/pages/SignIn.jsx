@@ -26,7 +26,7 @@ export default function SignIn() {
   }
 
   return (
-    <AuthScreen title="Sign in" subtitle="Use the details your admin gave you.">
+    <AuthScreen title="Sign in">
       <form onSubmit={submit} className="flex flex-col gap-5">
         <AuthField label="Username" icon={User} autoFocus autoComplete="username" value={username}
           onChange={setUsername} />
@@ -54,7 +54,7 @@ export function AuthScreen({ title, subtitle, children }) {
           <span className="w-9 h-9 rounded-lg bg-navy text-white flex items-center justify-center"><Layers size={18} /></span>
           <span className="font-heading text-[20px] font-bold text-navy tracking-tight">TDPH</span>
         </div>
-        <h1 className="m-0 font-heading text-[24px] font-bold text-navy tracking-tight text-center">{title}</h1>
+        <h1 className={`m-0 font-heading text-[24px] font-bold text-navy tracking-tight text-center ${subtitle ? '' : 'mb-7'}`}>{title}</h1>
         {subtitle && <p className="m-0 mt-1.5 mb-7 text-[14px] text-slate leading-relaxed text-center">{subtitle}</p>}
         {children}
       </div>
