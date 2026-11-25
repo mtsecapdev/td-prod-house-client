@@ -56,16 +56,18 @@ export default function Composer({
   useEffect(() => { ref.current?.focus(); }, [skill, edit?.scope, edit?.after]);
 
   const skillInfo = SKILLS.find((s) => s.type === skill);
+  // In a chat, a skill can work from what was discussed; on the start screen there is nothing to use yet.
+  const fromChat = hero ? '' : ' Leave empty to use what we\'ve discussed.';
   const placeholder = skill === 'image'
-    ? 'What should the image show? Optional: it uses this conversation.'
+    ? `What should the image show?${fromChat}`
     : skillInfo
-      ? `What should the ${skillInfo.label.toLowerCase()} cover? Optional: it uses this conversation.`
+      ? `What should the ${skillInfo.label.toLowerCase()} cover?${fromChat}`
     : edit?.scope === 'add' ? `Describe the new ${edit.noun}`
       : edit?.scope === 'item' ? `What should change on ${edit.noun} ${edit.index + 1}?`
         : edit?.scope === 'all' ? `What should change across the ${edit.product}?`
           : 'Ask about your documents';
-  // A skill can start from the conversation alone; everything else needs words.
-  const canSend = !disabled && (text.trim() || skill);
+  // In a chat, a skill can start from the conversation alone; everything else needs words.
+  const canSend = !disabled && (text.trim() || (skill && !hero));
 
   function submit(e) {
     e?.preventDefault();
