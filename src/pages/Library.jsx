@@ -52,12 +52,17 @@ export default function Library() {
 
   return (
     <main className="max-w-[960px] w-[90%] mx-auto py-8 flex flex-col gap-6">
-      <h1 className="font-heading text-[32px] leading-10 font-bold tracking-tight m-0">Library</h1>
+      <div>
+        <h1 className="font-heading text-[32px] leading-10 font-bold tracking-tight m-0">Library</h1>
+        <p className="m-0 mt-1 text-[14px] text-slate">
+          Copies of decks, documents and images you've saved. They stay here even if you delete the chat they came from.
+        </p>
+      </div>
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-[360px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate pointer-events-none" />
-          <input className="field pl-9 w-full" placeholder="Search saved assets..."
+          <input className="field pl-9 w-full" placeholder="Search saved decks, documents and images"
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <select className="field w-auto min-w-[160px]" value={kind}
@@ -73,7 +78,9 @@ export default function Library() {
       ) : items.length === 0 ? (
         <div className="card p-10 text-center">
           <p className="text-slate text-[15px]">
-            {search || kind ? 'No matching assets found.' : 'Nothing saved yet. Save a deck, document or image from the workspace to keep a copy here.'}
+            {search || kind
+              ? 'Nothing matches your search.'
+              : <>Nothing saved yet. Use <strong>Save</strong> in a deck or document, or <strong>Save to Library</strong> on an image, to keep a copy here.</>}
           </p>
         </div>
       ) : (

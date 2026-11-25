@@ -1350,6 +1350,7 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
           </button>
           <button type="button" onClick={handleSaveToLibrary}
             disabled={savingToLibrary || savedToLibrary}
+            title={savedToLibrary ? 'Saved to the Library' : 'Save a copy to the Library'}
             className="btn-outline text-[12px] gap-1 py-1 px-2">
             {savedToLibrary ? <><Check size={13} /></> : savingToLibrary ? '...' : <><BookmarkPlus size={13} /><span className="hidden sm:inline">Save</span></>}
           </button>
