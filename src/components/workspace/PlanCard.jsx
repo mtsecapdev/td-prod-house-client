@@ -3,7 +3,8 @@ import {
   ChevronUp, ChevronDown, Plus, Trash2, X, Search, RefreshCw, Loader2, Layout, FileText, Sparkles, Settings2,
 } from 'lucide-react';
 import { generations } from '../../services/api';
-import { KIND, TEXT_AMOUNTS, typeLabel } from '../plan/kindConfig';
+import { KIND, TEXT_AMOUNTS, typeLabel, kindOptions } from '../plan/kindConfig';
+import { useSlideEngine } from '../slides/engine';
 import FigureImage from '../figures/FigureImage';
 import JobCard from '../plan/JobCard';
 import { usePlanGeneration, jobRunning, jobFailed } from '../plan/usePlanGeneration';
@@ -136,6 +137,7 @@ function GrowingTextarea(props) {
 function Card({ kind, genId, item, index, total, onChange, onMove, onRemove }) {
   const [picker, setPicker] = useState(false);
   const [showSources, setShowSources] = useState(false);
+  const engine = useSlideEngine();
   const bullets = (item.bullets || []).join('\n');
 
   return (
@@ -148,17 +150,17 @@ function Card({ kind, genId, item, index, total, onChange, onMove, onRemove }) {
           value={bullets} aria-label="Bullets, one per line"
           onChange={(e) => onChange({ bullets: e.target.value.split('\n') })}
           placeholder="What it should cover, one point per line" />
-        {item.figure_id && (item[kind.typeKey] === 'figure' || item.figure_beside) && (
+        {item.figure_id && (
           <div className="flex items-center gap-3 pt-1">
             <FigureImage figureId={item.figure_id} alt="" className="h-[72px] max-w-[140px] object-contain border border-border rounded bg-white" />
-            {item.type_reason && <span className="text-[12px] text-slate">{item.type_reason}</span>}
+            <span className="text-[12px] text-slate">{item[kind.typeKey] === 'figure' ? 'Shown as the main content' : 'Shown beside the text'}</span>
           </div>
         )}
         <div className="flex items-center gap-2 flex-wrap pt-1">
           <button type="button" onClick={() => setPicker(!picker)}
             className="chip-muted cursor-pointer hover:bg-[#E2E8F0] transition-colors text-[12px] flex items-center gap-1"
-            title={item.type_reason || 'Change layout'}>
-            <Layout size={12} />{typeLabel(kind, item[kind.typeKey])}
+            title="Change the kind">
+            <Layout size={12} />{typeLabel(kind, item[kind.typeKey], engine)}
           </button>
           <button type="button" onClick={() => setShowSources(!showSources)}
             className="chip-muted cursor-pointer hover:bg-[#E2E8F0] transition-colors text-[12px] flex items-center gap-1">
@@ -168,7 +170,7 @@ function Card({ kind, genId, item, index, total, onChange, onMove, onRemove }) {
         </div>
         {picker && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2">
-            {kind.options.map((opt) => (
+            {kindOptions(kind, engine).map((opt) => (
               <button key={opt.key} type="button" onClick={() => { onChange({ [kind.typeKey]: opt.key }); setPicker(false); }}
                 className={`option text-left ${item[kind.typeKey] === opt.key ? 'option-selected' : ''}`}>
                 <div>
@@ -301,7 +303,11 @@ export default function PlanCard({ id, type, onOpen }) {
       {!planning && !failed && items && brief && (
         <>
           <p className="text-[13px] text-slate m-0">
-            Here is the plan: {items.length} {kind.nounPlural}. Edit anything, then generate.
+            Here is the plan: {items.length} {kind.nounPlural}
+            {/* The planner never pads: fewer items than asked means the documents had less to say. */}
+            {brief.count > items.length && brief.scope !== 'full'
+              ? ` (you asked for up to ${brief.count}; the documents support ${items.length} without repeating facts)`
+              : ''}. Edit anything, then generate.
           </p>
           <ol className="list-none m-0 p-0 flex flex-col gap-2">
             {items.map((it, i) => (
@@ -331,7 +337,7 @@ export default function PlanCard({ id, type, onOpen }) {
                 <span className="hint text-[12px]">Changing this or the number of {kind.nounPlural} needs “Plan again”.</span>
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="label">{kind.nounPlural[0].toUpperCase() + kind.nounPlural.slice(1)}</span>
+                <span className="label">Up to this many {kind.nounPlural}</span>
                 <select className="field py-1.5 text-[13px]" value={brief.count || kind.defaultCount}
                   onChange={(e) => setBriefField('count', Number(e.target.value))}>
                   {countOptions.map((n) => <option key={n} value={n}>{n}</option>)}

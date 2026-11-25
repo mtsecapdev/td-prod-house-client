@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Loader2, FileText, Layout, ImagePlus, Minimize2, Feather, Workflow, Wand2 } from 'lucide-react';
 import { generations } from '../../services/api';
-import { KIND, typeLabel } from './kindConfig';
+import { KIND, typeLabel, kindOptions } from './kindConfig';
+import { useSlideEngine } from '../slides/engine';
 import FigurePicker from '../figures/FigurePicker';
 
 const SHORTER = 'Make it about 40% shorter. Keep the most important facts.';
@@ -13,6 +14,7 @@ const SIMPLER = 'Use simpler language a non-specialist would follow. Keep the fa
  */
 export default function ItemToolbar({ type, genId, index, item, documentIds = [], onAsk, onUpdated, onAddFigure }) {
   const kind = KIND[type];
+  const engine = useSlideEngine();
   const [open, setOpen] = useState(null); // 'layout' | 'sources' | 'figure'
   const [suggestions, setSuggestions] = useState(null);
   const [busy, setBusy] = useState(null);
@@ -46,7 +48,7 @@ export default function ItemToolbar({ type, genId, index, item, documentIds = []
     }
   }
 
-  const label = (key) => typeLabel(kind, key);
+  const label = (key) => typeLabel(kind, key, engine);
   const chip = 'inline-flex items-center gap-1 px-2 py-1 rounded-md text-[12px] text-ink bg-transparent border border-transparent hover:bg-canvas hover:border-border cursor-pointer disabled:opacity-50';
 
   return (
@@ -57,7 +59,7 @@ export default function ItemToolbar({ type, genId, index, item, documentIds = []
       {current !== 'diagram' && (
         <button type="button" className={chip} disabled={Boolean(busy)} onClick={() => changeLayout('diagram')}><Workflow size={12} />As a diagram</button>
       )}
-      <button type="button" className={chip} disabled={Boolean(busy)} onClick={openLayouts}><Layout size={12} />Layout: {label(current)}</button>
+      <button type="button" className={chip} disabled={Boolean(busy)} onClick={openLayouts}><Layout size={12} />Kind: {label(current)}</button>
       {documentIds.length > 0 && onAddFigure && (
         <button type="button" className={chip} disabled={Boolean(busy)} onClick={() => setOpen('figure')}><ImagePlus size={12} />Add figure</button>
       )}
@@ -73,7 +75,7 @@ export default function ItemToolbar({ type, genId, index, item, documentIds = []
 
       {open === 'layout' && (
         <div className="absolute left-3 top-full mt-1 z-30 w-[360px] max-w-[90vw] bg-white border border-border rounded-lg shadow-lg p-2 flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto">
-          {suggestions === null && <span className="hint text-[12px] flex items-center gap-1 p-1"><Loader2 size={12} className="animate-spin" />Finding layouts that suit this content…</span>}
+          {suggestions === null && <span className="hint text-[12px] flex items-center gap-1 p-1"><Loader2 size={12} className="animate-spin" />Finding kinds that suit this content…</span>}
           {suggestions?.map((sg) => (
             <button key={sg.type} type="button" onClick={() => changeLayout(sg.type)}
               className="text-left px-2 py-1.5 rounded-md border border-cobalt/40 bg-[#F5F8FC] hover:bg-[#EAF0F8] cursor-pointer">
@@ -82,7 +84,7 @@ export default function ItemToolbar({ type, genId, index, item, documentIds = []
             </button>
           ))}
           <div className="grid grid-cols-2 gap-1 pt-1">
-            {kind.options.filter((o) => o.key !== current).map((o) => (
+            {kindOptions(kind, engine).filter((o) => o.key !== current).map((o) => (
               <button key={o.key} type="button" title={o.description} onClick={() => changeLayout(o.key)}
                 className="text-left text-[12px] px-2 py-1 rounded border border-border bg-white hover:bg-canvas cursor-pointer">
                 {o.label}

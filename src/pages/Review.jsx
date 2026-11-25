@@ -10,14 +10,8 @@ import { useLiveWrite } from '../components/plan/useLiveWrite';
 import { useItemDelete, shiftedHistory } from '../components/plan/useItemDelete';
 import DeletedToast from '../components/plan/DeletedToast';
 import { useTemplates, findTemplate, templateStyle } from '../components/plan/templates';
-import {
-  AutoTextarea, inputBase, SlideNumber, TitleSlide, BulletsSlide, TwoColumnSlide, KeyStatsSlide, DiagramSlide, FigureSlide,
-  StatFocusSlide, QuoteHighlightSlide, ChecklistSlide, ClosingSlide, SectionDividerSlide, BigIdeaSlide, TimelineSlide,
-  ProcessFlowSlide, IconGridSlide, ComparisonTableSlide,
-} from '../components/slides/SlideLayouts';
-
-const SLIDE_W = 960;
-const SLIDE_H = 540;
+import SlideCanvas, { AutoTextarea, inputBase, SLIDE_W, SLIDE_H } from '../components/slides/SlideCanvas';
+import { useSlideEngine } from '../components/slides/engine';
 
 function SlideFitContainer({ children }) {
   const containerRef = useRef(null);
@@ -67,208 +61,39 @@ function SlideFrame({ children }) {
 
   return (
     <div ref={outerRef} className="absolute inset-0 overflow-hidden">
-      <div style={{
-        width: SLIDE_W, height: SLIDE_H,
-        transform: `scale(${scale})`, transformOrigin: 'top left', fontFamily: 'var(--font-body)',
-      }} data-slide className="relative overflow-hidden">
+      <div style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
         {children}
       </div>
     </div>
   );
 }
 
-const LAYOUT_LABELS = {
-  title: 'Title', bullets: 'Bullets', two_column: 'Two Column',
-  stat_focus: 'Key Stat', quote_highlight: 'Quote', checklist: 'Checklist',
-  closing: 'Closing', section_divider: 'Divider', big_idea: 'Big Idea',
-  timeline: 'Timeline', process_flow: 'Process', icon_grid: 'Icon Grid',
-  comparison_table: 'Table', key_stats: 'Key Stats', diagram: 'Diagram', figure: 'Figure',
-};
+// Content paths: ['points', 2, 'detail'] reaches content.points[2].detail.
+const getIn = (obj, path) => path.reduce((o, k) => o?.[k], obj);
+function setIn(obj, path, value) {
+  const parent = getIn(obj, path.slice(0, -1));
+  if (parent) parent[path[path.length - 1]] = value;
+}
 
-function SlideThumbnail({ layout }) {
-  const base = 'w-full h-full rounded-[3px] overflow-hidden';
-  switch (layout) {
-    case 'title':
-      return (
-        <div className={`${base} bg-gradient-to-br from-[#0F2B48] to-[#1E4A7A] flex flex-col justify-center px-2`}>
-          <div className="w-[60%] h-[3px] bg-white/70 rounded-full mb-1" />
-          <div className="w-[40%] h-[2px] bg-white/30 rounded-full" />
-          <div className="w-[20%] h-[1.5px] bg-[#60A5FA]/50 rounded-full mt-1.5" />
+/** A slide in the list: the slide itself, drawn small from the same boxes. */
+function SlideThumbnail({ engine, slide, number, style }) {
+  const ref = useRef(null);
+  const [scale, setScale] = useState(0.05);
+  useEffect(() => {
+    if (!ref.current) return undefined;
+    const observer = new ResizeObserver(() => ref.current && setScale(ref.current.clientWidth / SLIDE_W));
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="w-full h-full overflow-hidden bg-white" style={style}>
+      {engine && slide.content && (
+        <div style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+          <SlideCanvas layout={engine.layoutSlide(slide, number)} />
         </div>
-      );
-    case 'two_column':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex gap-px p-1.5`}>
-          <div className="flex-1 flex flex-col gap-0.5">
-            <div className="w-full h-[2px] bg-cobalt/40 rounded-full" />
-            <div className="w-[80%] h-[1.5px] bg-[#CBD5E1] rounded-full" />
-            <div className="w-[70%] h-[1.5px] bg-[#CBD5E1] rounded-full" />
-          </div>
-          <div className="w-px bg-[#E2E8F0]" />
-          <div className="flex-1 flex flex-col gap-0.5">
-            <div className="w-full h-[2px] bg-[#10B981]/40 rounded-full" />
-            <div className="w-[80%] h-[1.5px] bg-[#CBD5E1] rounded-full" />
-            <div className="w-[70%] h-[1.5px] bg-[#CBD5E1] rounded-full" />
-          </div>
-        </div>
-      );
-    case 'stat_focus':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col items-center justify-center`}>
-          <div className="text-[10px] font-extrabold text-cobalt leading-none">42</div>
-          <div className="w-3 h-px bg-cobalt/30 rounded-full mt-0.5" />
-          <div className="w-[40%] h-[1.5px] bg-[#CBD5E1] rounded-full mt-0.5" />
-        </div>
-      );
-    case 'quote_highlight':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex`}>
-          <div className="w-[3px] bg-gradient-to-b from-cobalt to-cobalt/30 shrink-0" />
-          <div className="flex-1 flex flex-col justify-center px-1.5 gap-0.5">
-            <div className="text-[7px] text-cobalt/20 font-heading leading-none">&ldquo;</div>
-            <div className="w-[80%] h-[1.5px] bg-[#CBD5E1] rounded-full" />
-            <div className="w-[60%] h-[1.5px] bg-[#CBD5E1] rounded-full" />
-          </div>
-        </div>
-      );
-    case 'checklist':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col justify-center px-1.5 gap-[3px]`}>
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="flex items-center gap-1">
-              <div className="w-[8px] h-[8px] rounded-sm bg-navy/80 text-white text-[5px] font-bold flex items-center justify-center shrink-0">{n}</div>
-              <div className="flex-1 h-[1.5px] bg-[#CBD5E1] rounded-full" />
-            </div>
-          ))}
-        </div>
-      );
-    case 'closing':
-      return (
-        <div className={`${base} bg-gradient-to-br from-[#0F2B48] to-[#1E4A7A] flex flex-col justify-center px-2 gap-[2px]`}>
-          <div className="w-[50%] h-[2px] bg-white/60 rounded-full mb-0.5" />
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="flex items-center gap-1">
-              <div className="w-[5px] h-[5px] rounded-full bg-cobalt shrink-0" />
-              <div className="flex-1 h-[1.5px] bg-white/30 rounded-full" />
-            </div>
-          ))}
-        </div>
-      );
-    case 'section_divider':
-      return (
-        <div className={`${base} bg-gradient-to-br from-[#163A60] to-[#1E4A7A] flex flex-col justify-center px-2`}>
-          <div className="w-[60%] h-[2.5px] bg-white/70 rounded-full mb-0.5" />
-          <div className="w-full h-[2px] bg-cobalt rounded-full my-0.5" />
-          <div className="w-[40%] h-[1.5px] bg-white/30 rounded-full" />
-        </div>
-      );
-    case 'big_idea':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex items-center`}>
-          <div className="w-[3px] h-full bg-cobalt shrink-0" />
-          <div className="flex flex-col justify-center px-1.5 gap-0.5">
-            <div className="text-[7px] text-[#E2E8F0] font-heading leading-none">&ldquo;</div>
-            <div className="w-[70%] h-[2px] bg-navy/40 rounded-full" />
-            <div className="w-3 h-px bg-cobalt/30 rounded-full" />
-            <div className="w-[50%] h-[1.5px] bg-[#CBD5E1] rounded-full" />
-          </div>
-        </div>
-      );
-    case 'timeline':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col items-center justify-center gap-0.5 px-1`}>
-          <div className="w-[60%] h-[2px] bg-navy/30 rounded-full" />
-          <div className="flex items-center gap-1 w-full justify-center mt-0.5">
-            {[1, 2, 3].map((n) => (
-              <div key={n} className="flex flex-col items-center">
-                <div className="w-[5px] h-[5px] rounded-full bg-cobalt" />
-                <div className="w-[1px] h-[4px] bg-[#E2E8F0]" />
-              </div>
-            ))}
-          </div>
-          <div className="w-[70%] h-[1.5px] bg-[#E2E8F0] rounded-full -mt-[5px]" />
-        </div>
-      );
-    case 'process_flow':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex items-center justify-center gap-[2px] px-1`}>
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="flex items-center gap-[2px]">
-              <div className="w-[10px] h-[14px] rounded-sm bg-[#F0F4F8] flex items-center justify-center">
-                <div className="w-[5px] h-[5px] rounded-full bg-cobalt/60" />
-              </div>
-              {n < 3 && <span className="text-[5px] text-cobalt/50">→</span>}
-            </div>
-          ))}
-        </div>
-      );
-    case 'icon_grid':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] grid grid-cols-2 gap-[2px] p-1`}>
-          {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="bg-[#F0F4F8] rounded-sm flex flex-col items-center justify-center gap-[1px] py-0.5">
-              <div className="w-[5px] h-[5px] rounded-full bg-cobalt/40" />
-              <div className="w-[60%] h-[1px] bg-[#CBD5E1] rounded-full" />
-            </div>
-          ))}
-        </div>
-      );
-    case 'comparison_table':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col p-0.5`}>
-          <div className="flex gap-px mb-px">
-            <div className="flex-1 h-[4px] bg-cobalt rounded-sm" />
-            <div className="flex-1 h-[4px] bg-cobalt rounded-sm" />
-          </div>
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="flex gap-px mb-px">
-              <div className={`flex-1 h-[3px] rounded-sm ${n % 2 ? 'bg-[#F0F4F8]' : 'bg-white'}`} />
-              <div className={`flex-1 h-[3px] rounded-sm ${n % 2 ? 'bg-[#F0F4F8]' : 'bg-white'}`} />
-            </div>
-          ))}
-        </div>
-      );
-    case 'key_stats':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex items-center justify-center gap-[3px] px-1`}>
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="flex-1 flex flex-col items-center border-t-2 border-cobalt/50 pt-0.5">
-              <div className="text-[6px] font-extrabold text-cobalt leading-none">{n * 12}</div>
-              <div className="w-[70%] h-[1.5px] bg-[#CBD5E1] rounded-full mt-0.5" />
-            </div>
-          ))}
-        </div>
-      );
-    case 'diagram':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex items-center justify-center gap-[2px] px-1`}>
-          <div className="w-[7px] h-[5px] border border-cobalt/60 rounded-[1px]" />
-          <div className="w-[4px] h-px bg-[#94A3B8]" />
-          <div className="w-[6px] h-[6px] border border-cobalt/60 rotate-45" />
-          <div className="w-[4px] h-px bg-[#94A3B8]" />
-          <div className="w-[7px] h-[5px] border border-cobalt/60 rounded-[1px]" />
-        </div>
-      );
-    case 'figure':
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col items-center justify-center gap-[2px] px-1`}>
-          <div className="w-[60%] h-[2px] bg-navy/30 rounded-full" />
-          <div className="w-[22px] h-[11px] bg-cobalt/20 border border-cobalt/40 rounded-[1px]" />
-        </div>
-      );
-    default: // bullets
-      return (
-        <div className={`${base} bg-white border border-[#E2E8F0] flex flex-col justify-center px-1.5 gap-[3px]`}>
-          <div className="w-[70%] h-[2px] bg-navy/30 rounded-full" />
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="flex items-center gap-1">
-              <div className="w-[4px] h-[4px] rounded-full bg-cobalt/40 shrink-0" />
-              <div className="flex-1 h-[1.5px] bg-[#CBD5E1] rounded-full" />
-            </div>
-          ))}
-        </div>
-      );
-  }
+      )}
+    </div>
+  );
 }
 
 /* ══════════════════════════════════════
@@ -288,8 +113,6 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
   const [savedToLibrary, setSavedToLibrary] = useState(false);
   const [savingToLibrary, setSavingToLibrary] = useState(false);
   const [openingDeckCraft, setOpeningDeckCraft] = useState(false);
-  const [dragIdx, setDragIdx] = useState(null);
-  const [dragOverIdx, setDragOverIdx] = useState(null);
   const saveTimer = useRef(null);
   const undoStack = useRef({});
   const [stackSizes, setStackSizes] = useState({});
@@ -297,6 +120,7 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
   const navRef = useRef(null);
   // Slides that are not written yet are written now and appear one by one.
   const live = useLiveWrite(id, gen, setGen, 'slides');
+  const engine = useSlideEngine();
   const templateData = useTemplates();
   const template = findTemplate(templateData, gen?.brief?.template);
 
@@ -331,8 +155,8 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
     const s = gen.outline.slides[activeSlide];
     const pics = s.content.pictures || [];
     if (pics.some((p) => samePicture(p, command.picture))) return; // already on this slide
-    updateSlideField('pictures', [...pics, newPicture(command.picture, { slide: true, layout: s.layout || 'bullets', existing: pics.length })]);
-  }, [command, gen]); // eslint-disable-line react-hooks/exhaustive-deps
+    updateSlideField('pictures', [...pics, newPicture(command.picture, { box: engine?.pictureBoxFor(s.layout, pics.length), existing: pics.length })]);
+  }, [command, gen, engine]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A new focus request (e.g. "Show" on a change made from the chat) selects that slide.
   const [seenFocus, setSeenFocus] = useState(null);
@@ -429,7 +253,7 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
   const slides = gen.outline.slides;
   const slide = slides[activeSlide];
   const content = slide?.content;
-  const layout = slide?.layout || 'bullets';
+  const layout = slide?.layout;
 
   function applyUpdate(updatedGen) {
     const currentContent = gen.outline.slides[activeSlide]?.content;
@@ -459,222 +283,58 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
     applyUpdate({ ...gen, outline: { ...gen.outline, slides: updatedSlides } });
   }
 
-  // Key stats helpers
-  function updateStat(idx, field, value) {
-    const a = (content.stats || []).map((st, i) => i === idx ? { ...st, [field]: value } : st);
-    updateSlideField('stats', a);
+  // Edits by content path (the paths the layout engine gives each text, icon and list).
+  function editContent(change) {
+    const next = structuredClone(content);
+    change(next);
+    const updatedSlides = slides.map((s, i) => (i === activeSlide ? { ...s, content: next, title: next.title ?? s.title } : s));
+    applyUpdate({ ...gen, outline: { ...gen.outline, slides: updatedSlides } });
   }
-  function addStat(after) {
-    const a = [...(content.stats || [])]; a.splice(after + 1, 0, { value: '', label: '', detail: '' });
-    updateSlideField('stats', a);
+  const setText = (path, value) => editContent((c) => setIn(c, path, value));
+  // A new entry for the list a control belongs to: a table row of empty cells, else the spec's empty entry.
+  function insertEntry(control, index) {
+    const names = control.path.filter((k) => typeof k === 'string');
+    const entry = control.path[0] === 'rows'
+      ? Array((content.columns || []).length).fill('')
+      : engine.newEntry(layout, names);
+    editContent((c) => getIn(c, control.path).splice(index + 1, 0, entry));
   }
-  function removeStat(idx) {
-    if ((content.stats || []).length <= 1) return;
-    updateSlideField('stats', (content.stats || []).filter((_, i) => i !== idx));
-  }
-
-  // Bullets layout helpers
-  function updateBullet(idx, field, value) {
-    const updated = content.bullets.map((b, i) => i === idx ? { ...b, [field]: value } : b);
-    updateSlideField('bullets', updated);
-  }
-  function moveBullet(idx, dir) {
-    const t = idx + dir;
-    if (t < 0 || t >= content.bullets.length) return;
-    const a = [...content.bullets]; [a[idx], a[t]] = [a[t], a[idx]];
-    updateSlideField('bullets', a);
-  }
-  function addBullet(after) {
-    const a = [...content.bullets]; a.splice(after + 1, 0, { heading: '', detail: '' });
-    updateSlideField('bullets', a);
-  }
-  function removeBullet(idx) {
-    if (content.bullets.length <= 1) return;
-    updateSlideField('bullets', content.bullets.filter((_, i) => i !== idx));
-  }
-
-  // Two-column helpers
-  function updateColumnBullet(key, idx, value) {
-    const a = [...(content[key] || [])]; a[idx] = value;
-    updateSlideField(key, a);
-  }
-  function addColumnBullet(key, after) {
-    const a = [...(content[key] || [])]; a.splice(after + 1, 0, '');
-    updateSlideField(key, a);
-  }
-  function removeColumnBullet(key, idx) {
-    const a = content[key] || [];
-    if (a.length <= 1) return;
-    updateSlideField(key, a.filter((_, i) => i !== idx));
-  }
-
-  // Checklist helpers
-  function updateItem(idx, field, value) {
-    const updated = content.items.map((it, i) => i === idx ? { ...it, [field]: value } : it);
-    updateSlideField('items', updated);
-  }
-  function addItem(after) {
-    const a = [...content.items]; a.splice(after + 1, 0, { step: '', detail: '' });
-    updateSlideField('items', a);
-  }
-  function removeItem(idx) {
-    if (content.items.length <= 1) return;
-    updateSlideField('items', content.items.filter((_, i) => i !== idx));
-  }
-
-  // Closing layout helpers
-  function updateTakeaway(idx, value) {
-    const a = [...(content.takeaways || [])]; a[idx] = value;
-    updateSlideField('takeaways', a);
-  }
-  function addTakeaway(after) {
-    const a = [...(content.takeaways || [])]; a.splice(after + 1, 0, '');
-    updateSlideField('takeaways', a);
-  }
-  function removeTakeaway(idx) {
-    const a = content.takeaways || [];
-    if (a.length <= 1) return;
-    updateSlideField('takeaways', a.filter((_, i) => i !== idx));
-  }
-
-  // Timeline helpers
-  function updateEvent(idx, field, value) {
-    const a = (content.events || []).map((e, i) => i === idx ? { ...e, [field]: value } : e);
-    updateSlideField('events', a);
-  }
-  function addEvent(after) {
-    const a = [...(content.events || [])]; a.splice(after + 1, 0, { date: '', label: '', detail: '' });
-    updateSlideField('events', a);
-  }
-  function removeEvent(idx) {
-    if ((content.events || []).length <= 1) return;
-    updateSlideField('events', (content.events || []).filter((_, i) => i !== idx));
-  }
-
-  // Process flow helpers
-  function updateStep(idx, field, value) {
-    const a = (content.steps || []).map((s, i) => i === idx ? { ...s, [field]: value } : s);
-    updateSlideField('steps', a);
-  }
-  function addStep(after) {
-    const a = [...(content.steps || [])]; a.splice(after + 1, 0, { label: '', detail: '' });
-    updateSlideField('steps', a);
-  }
-  function removeStep(idx) {
-    if ((content.steps || []).length <= 1) return;
-    updateSlideField('steps', (content.steps || []).filter((_, i) => i !== idx));
-  }
-
-  // Icon grid helpers
-  function updateGridItem(idx, field, value) {
-    const a = (content.items || []).map((it, i) => i === idx ? { ...it, [field]: value } : it);
-    updateSlideField('items', a);
-  }
-  function addGridItem(after) {
-    const a = [...(content.items || [])]; a.splice(after + 1, 0, { icon: '', label: '', description: '' });
-    updateSlideField('items', a);
-  }
-  function removeGridItem(idx) {
-    if ((content.items || []).length <= 1) return;
-    updateSlideField('items', (content.items || []).filter((_, i) => i !== idx));
-  }
-
-  // Comparison table helpers
-  function updateColumnHeader(ci, value) {
-    const a = [...(content.columns || [])]; a[ci] = value;
-    updateSlideField('columns', a);
-  }
-  function updateCell(ri, ci, value) {
-    const r = (content.rows || []).map((row, i) => {
-      if (i !== ri) return row;
-      const nr = [...row]; nr[ci] = value; return nr;
+  const removeEntry = (path, index) => editContent((c) => getIn(c, path).splice(index, 1));
+  function moveEntry(path, index, dir) {
+    editContent((c) => {
+      const list = getIn(c, path);
+      const to = index + dir;
+      if (to < 0 || to >= list.length) return;
+      [list[index], list[to]] = [list[to], list[index]];
     });
-    updateSlideField('rows', r);
   }
-  function addTableRow(after) {
-    const cols = (content.columns || []).length;
-    const a = [...(content.rows || [])]; a.splice(after + 1, 0, Array(cols).fill(''));
-    updateSlideField('rows', a);
+  function listBounds(control) {
+    if (control.path[0] === 'rows') return { min: 1, max: engine.KINDS[layout].fields.grid.rows };
+    return engine.listBounds(layout, control.path.filter((k) => typeof k === 'string'));
   }
-  function removeTableRow(idx) {
-    if ((content.rows || []).length <= 1) return;
-    updateSlideField('rows', (content.rows || []).filter((_, i) => i !== idx));
-  }
-
-  // Drag handlers for bullets
-  const dragHandlers = {
-    dragIdx, overIdx: dragOverIdx,
-    start: (i) => setDragIdx(i),
-    over: (e, i) => { e.preventDefault(); setDragOverIdx(i); },
-    drop: (i) => {
-      if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOverIdx(null); return; }
-      const a = [...content.bullets]; const [m] = a.splice(dragIdx, 1); a.splice(i, 0, m);
-      updateSlideField('bullets', a);
-      setDragIdx(null); setDragOverIdx(null);
-    },
-    end: () => { setDragIdx(null); setDragOverIdx(null); },
-  };
-
-
 
   function renderSlide() {
     if (!content) {
       return (
-        <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
+        <div className="w-full h-full bg-white flex flex-col items-center justify-center gap-3 text-center">
           {live.phase === 'error'
             ? <p className="text-red-700 text-[14px] m-0">Writing stopped: {live.message}</p>
             : <><Loader2 size={28} className="text-cobalt animate-spin" /><p className="text-[16px] text-slate m-0">Writing “{slide.title}”…</p></>}
         </div>
       );
     }
-
-    const onField = updateSlideField;
-
-    switch (layout) {
-      case 'title':
-        return <TitleSlide content={content} onField={onField} />;
-      case 'two_column':
-        return <TwoColumnSlide content={content} onField={onField}
-          onColumnBullet={updateColumnBullet} onAddColumnBullet={addColumnBullet} onRemoveColumnBullet={removeColumnBullet} />;
-      case 'stat_focus':
-        return <StatFocusSlide content={content} onField={onField} />;
-      case 'quote_highlight':
-        return <QuoteHighlightSlide content={content} onField={onField} />;
-      case 'checklist':
-        return <ChecklistSlide content={content} onField={onField}
-          onItem={updateItem} onAddItem={addItem} onRemoveItem={removeItem} />;
-      case 'closing':
-        return <ClosingSlide content={content} onField={onField}
-          onTakeaway={updateTakeaway} onAddTakeaway={addTakeaway} onRemoveTakeaway={removeTakeaway} />;
-      case 'section_divider':
-        return <SectionDividerSlide content={content} onField={onField} />;
-      case 'big_idea':
-        return <BigIdeaSlide content={content} onField={onField} />;
-      case 'timeline':
-        return <TimelineSlide content={content} onField={onField}
-          onEvent={updateEvent} onAddEvent={addEvent} onRemoveEvent={removeEvent} />;
-      case 'process_flow':
-        return <ProcessFlowSlide content={content} onField={onField}
-          onStep={updateStep} onAddStep={addStep} onRemoveStep={removeStep} />;
-      case 'icon_grid':
-        return <IconGridSlide content={content} onField={onField}
-          onItem={updateGridItem} onAddItem={addGridItem} onRemoveItem={removeGridItem} />;
-      case 'comparison_table':
-        return <ComparisonTableSlide content={content} onField={onField}
-          onCell={updateCell} onColumnHeader={updateColumnHeader} onAddRow={addTableRow} onRemoveRow={removeTableRow} />;
-      case 'key_stats':
-        return <KeyStatsSlide content={content} onField={onField}
-          onStat={updateStat} onAddStat={addStat} onRemoveStat={removeStat} />;
-      case 'diagram':
-        return <DiagramSlide content={content} genId={id} templateId={template?.id} onField={onField} />;
-      case 'figure':
-        return <FigureSlide content={content} onField={onField} />;
-      case 'bullets':
-      default:
-        return <BulletsSlide content={content} onField={onField}
-          onBullet={updateBullet} onMoveBullet={moveBullet} onAddBullet={addBullet} onRemoveBullet={removeBullet}
-          dragHandlers={dragHandlers} />;
-    }
+    if (!engine) return <div className="w-full h-full bg-white" />;
+    const laid = engine.layoutSlide(slide, activeSlide + 1);
+    return (
+      <SlideCanvas layout={laid} icons={engine.ICON_NAMES} editable
+        onText={setText} onIcon={setText} onInsert={insertEntry} onRemove={removeEntry} onMove={moveEntry} bounds={listBounds}
+        diagram={{ genId: id, templateId: template?.id, file: content.diagram_file, alt: content.caption || content.title,
+          value: content.image, onChange: (v) => updateSlideField('image', v) }}>
+        <Pictures key={activeSlide} slide boxes={laid.pictureBoxes} pictures={content.pictures || []}
+          documentIds={gen.source_document_ids || []}
+          onChange={(list) => updateSlideField('pictures', list.length ? list : undefined)} />
+      </SlideCanvas>
+    );
   }
 
   // Switching template is instant: it only restyles the preview and the next download.
@@ -704,7 +364,7 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
     setSavingToLibrary(false);
   }
 
-  const hasSpeakerNotes = layout !== 'title' && layout !== 'closing' && layout !== 'section_divider';
+  const hasSpeakerNotes = layout !== 'title' && layout !== 'section';
 
   return (
     <main className="h-full flex flex-col overflow-hidden bg-white">
@@ -781,13 +441,13 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
                   className={`w-full flex flex-col lg:flex-row gap-1 lg:gap-2 items-center min-h-[40px] px-1 lg:px-1.5 py-1 rounded-lg text-left cursor-pointer border-2 transition-all ${
                     i === activeSlide ? 'border-navy bg-[#F5F8FC] shadow-sm' : 'border-transparent hover:bg-[#F0F4F8] hover:border-[#E2E8F0]'
                   }`}>
-                  <div className={`w-[52px] h-[30px] lg:w-[44px] lg:h-[26px] shrink-0 rounded-[3px] overflow-hidden shadow-sm ${s.content ? '' : 'opacity-30 animate-pulse'}`}>
-                    <SlideThumbnail layout={s.layout || 'bullets'} />
+                  <div className={`w-[52px] h-[30px] lg:w-[48px] lg:h-[27px] shrink-0 rounded-[3px] overflow-hidden shadow-sm border border-border ${s.content ? '' : 'opacity-30 animate-pulse'}`}>
+                    <SlideThumbnail engine={engine} slide={s} number={i + 1} style={templateStyle(template)} />
                   </div>
                   <div className="flex-1 min-w-0 w-full">
                     <span className="block text-[10px] lg:text-[11px] font-semibold text-ink truncate leading-tight text-center lg:text-left">
                       {i + 1}
-                      <span className="hidden lg:inline"> &middot; {LAYOUT_LABELS[s.layout] || 'Bullets'}</span>
+                      <span className="hidden lg:inline"> &middot; {engine?.KINDS[s.layout]?.label || 'Old slide'}</span>
                     </span>
                   </div>
                 </button>
@@ -816,20 +476,10 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
             onAsk={(instruction, label) => onAsk?.(instruction, label, activeSlide)}
             onUpdated={async () => { const r = await generations.get(id); setGen(r.generation); }}
             onAddFigure={(f) => updateSlideField('pictures', [...(content?.pictures || []),
-              newPicture(f, { slide: true, layout, existing: (content?.pictures || []).length })])} />
+              newPicture(f, { box: engine?.pictureBoxFor(layout, (content?.pictures || []).length), existing: (content?.pictures || []).length })])} />
           <SlideFitContainer>
             <article className="rounded-lg shadow-lg overflow-hidden relative bg-white w-full h-full" style={templateStyle(template)}>
-              <SlideFrame>
-                {renderSlide()}
-                {content && layout !== 'title' && layout !== 'closing' && (
-                  <SlideNumber number={activeSlide + 1} dark={layout === 'section_divider'} />
-                )}
-                {content && (
-                  <Pictures key={activeSlide} slide layout={layout} pictures={content.pictures || []}
-                    documentIds={gen.source_document_ids || []}
-                    onChange={(list) => updateSlideField('pictures', list.length ? list : undefined)} />
-                )}
-              </SlideFrame>
+              <SlideFrame>{renderSlide()}</SlideFrame>
             </article>
           </SlideFitContainer>
 
