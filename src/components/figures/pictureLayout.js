@@ -13,8 +13,8 @@ export const pictureUrl = (p) => (p.image_id ? imageUrl(p.image_id) : figureUrl(
 
 // Where a picture goes before the user moves it, as fractions of the slide [x, y, w, h]. render_pptx.py uses
 // the same boxes, so an unmoved picture lands in the same place in the download.
-const FIGURE_BOX = [0.06, 0.2333, 0.88, 0.5867]; // a Figure slide's own figure: the space under the title
-const SIDE_BOX = [0.55, 0.25, 0.39, 0.55];       // a picture added to any other slide
+const FIGURE_BOX = [0.0563, 0.2667, 0.8875, 0.6];  // a Figure slide's own figure: the band under the title
+const SIDE_BOX = [0.6, 0.06, 0.3662, 0.8067];      // any other slide: the panel on the right, caption under it
 const SLIDE_ASPECT = 9 / 16;
 
 export const boxFor = (layout, index) => (layout === 'figure' && index === 0 ? FIGURE_BOX : SIDE_BOX);
