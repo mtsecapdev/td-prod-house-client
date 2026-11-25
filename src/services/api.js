@@ -106,7 +106,15 @@ export const conversations = {
   delete: (id) => request(`/conversations/${id}`, { method: 'DELETE' }),
   // A question, or with target { generationId, index? | after? } a change to that deck/document.
   // Streams { phase } events; resolves with { phase: 'done', messages: [user, assistant] }.
-  send: (id, content, target, onEvent) => stream(`/conversations/${id}/messages`, { content, target }, onEvent),
+  // picked: a quick answer or checklist clicked in the planning interview (taken as given, not judged).
+  send: (id, content, target, onEvent, picked) => stream(`/conversations/${id}/messages`, { content, target, picked }, onEvent),
+  // The planning interview before a deck/document: each returns { messages } (the next question or summary, the plan card).
+  interview: {
+    skip: (id) => request(`/conversations/${id}/interview/skip`, { method: 'POST' }),
+    change: (id, slot) => request(`/conversations/${id}/interview/change`, { method: 'POST', body: JSON.stringify({ slot }) }),
+    cancel: (id) => request(`/conversations/${id}/interview/cancel`, { method: 'POST' }),
+    plan: (id) => request(`/conversations/${id}/interview/plan`, { method: 'POST' }),
+  },
   // Makes a deck ('deck'), training document ('doc') or image ('image') from the conversation; returns { messages }.
   skill: (id, type, request_) =>
     request(`/conversations/${id}/skills/${type}`, { method: 'POST', body: JSON.stringify({ request: request_ }) }),

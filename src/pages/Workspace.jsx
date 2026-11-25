@@ -118,12 +118,14 @@ export default function Workspace() {
    * to one item regardless of the box's mode (the editor's Shorter/Simpler buttons); `skillOverride` sends it as
    * that skill (a typed "/deck …" command).
    */
-  async function send(text, forced, skillOverride) {
+  async function send(text, forced, skillOverride, picked) {
     setError(null);
     const skill_ = skillOverride || skill;
-    const mode = forced ? 'edit' : skill_ ? 'skill' : editing ? 'edit' : 'ask';
+    // While the planning interview asks a question, a message is its answer.
+    const answering = !forced && !skill_ && interviewQuestion;
+    const mode = forced ? 'edit' : skill_ ? 'skill' : answering ? 'ask' : editing ? 'edit' : 'ask';
     const scope = forced ? 'item' : editing?.scope;
-    setPending({ content: text, phase: mode === 'skill' ? (skill_ === 'image' ? 'imaging' : 'skill') : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
+    setPending({ content: text, phase: answering ? 'interview' : mode === 'skill' ? (skill_ === 'image' ? 'imaging' : 'skill') : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
     try {
       let conv = conversation;
       if (!conv) {
@@ -143,7 +145,7 @@ export default function Workspace() {
         } : undefined;
         const done = await conversations.send(conv.id, text, target, (evt) => {
           if (evt.phase !== 'done') setPending((p) => p && { ...p, phase: evt.phase });
-        });
+        }, picked);
         added = done?.messages || [];
         if (mode === 'edit') {
           setReloadKey((k) => k + 1);
@@ -155,7 +157,31 @@ export default function Workspace() {
           }));
         }
       }
-      setMessages((m) => [...m, ...added]);
+      setMessages((m) => [...closeInterviewIn(m), ...added]);
+    } catch (err) {
+      setError(err.message);
+    }
+    setPending(null);
+    reloadConversations();
+  }
+
+  // The planning interview: its latest question or summary, while still open.
+  const lastInterview = [...messages].reverse().find((m) => m.kind === 'interview' || m.kind === 'brief');
+  const openInterview = lastInterview?.data?.interview?.active ? lastInterview : null;
+  const interviewQuestion = openInterview?.kind === 'interview';
+  // A reply replaces the open question or summary (the server closed it too).
+  const closeInterviewIn = (list) => list.map((m) => (m.id === openInterview?.id
+    ? { ...m, data: { ...m.data, interview: { ...m.data.interview, active: false } } } : m));
+
+  /** Just make it, Change an answer, Cancel, or Make the plan. */
+  async function interviewAction(action, slot) {
+    if (!conversation) return;
+    setError(null);
+    setPending({ content: '', phase: action === 'plan' ? 'skill' : 'planning_interview' });
+    try {
+      const api = conversations.interview;
+      const { messages: added } = action === 'change' ? await api.change(conversation.id, slot) : await api[action](conversation.id);
+      setMessages((m) => [...closeInterviewIn(m), ...added]);
     } catch (err) {
       setError(err.message);
     }
@@ -194,6 +220,7 @@ export default function Workspace() {
         onEditScope={(scope) => setPanel((p) => ({ ...p, scope }))}
         onStopEditing={() => setPanel((p) => ({ ...p, scope: null, addAfter: null }))}
         disabled={Boolean(pending)}
+        answering={interviewQuestion}
         onSend={(text, skillOverride) => send(text, null, skillOverride)} />
     </div>
   );
@@ -243,7 +270,6 @@ export default function Workspace() {
                 <div className="flex flex-col items-center gap-3 text-center">
                   <span className="w-11 h-11 rounded-xl bg-navy text-white flex items-center justify-center shadow-sm"><Layers size={22} /></span>
                   <h1 className="font-heading text-[30px] leading-9 font-bold tracking-tight text-navy m-0">{greeting()}</h1>
-                  <p className="text-[15px] text-slate m-0">Ask about your documents, then turn what you find into a slide deck, a training document or an image.</p>
                 </div>
                 <div className="w-full">{composer('hero')}</div>
                 <p className="m-0 -mt-2 text-[12px] text-slate">Drop files anywhere here to add them · type / for commands</p>
@@ -270,7 +296,9 @@ export default function Workspace() {
                       setPanel((p) => ({ ...p, focus: { index }, view: 'panel' }));
                     }}
                     onMessageUpdated={(msg) => setMessages((ms) => ms.map((m) => (m.id === msg.id ? msg : m)))}
-                    onDeckChanged={() => setReloadKey((k) => k + 1)} />
+                    onDeckChanged={() => setReloadKey((k) => k + 1)}
+                    onAnswer={(text, picked) => send(text, null, null, picked)}
+                    onInterview={interviewAction} />
                   <div ref={endRef} />
                 </div>
               </div>

@@ -5,6 +5,7 @@ import CopyButton from './CopyButton';
 import GenerationCard from './GenerationCard';
 import AgentPlanCard from './AgentPlanCard';
 import ImageCard from './ImageCard';
+import { InterviewQuestion, PlanSummary } from './InterviewCard';
 
 const PHASES = {
   rewriting: 'Understanding the question…',
@@ -15,6 +16,8 @@ const PHASES = {
   writing: 'Writing the new one…',
   planning: 'Planning the changes…',
   skill: 'Reading the conversation…',
+  interview: 'Reading your answer…',
+  planning_interview: 'Working on it…',
   imaging: 'Planning the image…',
 };
 const SKILL_TAGS = {
@@ -39,8 +42,11 @@ function targetLabel(target, types) {
  */
 export default function MessageList({
   conversationId, messages, pending, openGenerationId, addLabel, onAddPicture,
-  onOpenGeneration, onShowItem, onMessageUpdated, onDeckChanged,
+  onOpenGeneration, onShowItem, onMessageUpdated, onDeckChanged, onAnswer, onInterview,
 }) {
+  // Only the latest question or summary of the planning interview is answerable.
+  const current = [...messages].reverse().find((m) => m.kind === 'interview' || m.kind === 'brief');
+  const activeId = current?.data?.interview?.active && !pending ? current.id : null;
   // Which generation is a deck and which a document, for labels on edits.
   const types = new Map(messages.filter((m) => m.kind === 'generation').map((m) => [m.data.generation_id, m.data.type]));
 
@@ -77,6 +83,12 @@ export default function MessageList({
             <ImageCard key={m.id} data={m.data} addLabel={addLabel} onAdd={onAddPicture}
               onPlaced={onDeckChanged} onShowItem={onShowItem} />
           );
+        }
+        if (m.kind === 'interview') {
+          return <InterviewQuestion key={m.id} message={m} active={m.id === activeId} onAnswer={onAnswer} onAction={onInterview} />;
+        }
+        if (m.kind === 'brief') {
+          return <PlanSummary key={m.id} message={m} active={m.id === activeId} onAction={onInterview} />;
         }
         if (m.kind === 'agent_plan') {
           return (

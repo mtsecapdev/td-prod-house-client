@@ -26,7 +26,7 @@ const SKILLS = [
 export default function Composer({
   docs, docIds, onDocIdsChange, onDocsChanged,
   skill, onSkill, edit, onEditScope, onStopEditing,
-  disabled, onSend, variant = 'docked',
+  disabled, onSend, variant = 'docked', answering = false,
 }) {
   const hero = variant === 'hero';
   const [text, setText] = useState('');
@@ -58,7 +58,8 @@ export default function Composer({
   const skillInfo = SKILLS.find((s) => s.type === skill);
   // In a chat, a skill can work from what was discussed; on the start screen there is nothing to use yet.
   const fromChat = hero ? '' : ' Leave empty to use what we\'ve discussed.';
-  const placeholder = skill === 'image'
+  const placeholder = answering && !skill && !edit ? 'Type your answer, or pick one above'
+    : skill === 'image'
     ? `What should the image show?${fromChat}`
     : skillInfo
       ? `What should the ${skillInfo.label.toLowerCase()} cover?${fromChat}`
