@@ -22,6 +22,8 @@ export const KIND = {
     listKey: 'slides',
     typeKey: 'layout',
     defaultType: 'points',
+    // The opening and closing items: a length counts the items between them.
+    bookends: ['title', 'closing'],
     audienceWord: 'audience',
     countRange: [3, 25],
     defaultCount: 8,
@@ -38,6 +40,7 @@ export const KIND = {
     product: 'training document',
     listKey: 'sections',
     typeKey: 'section_type',
+    bookends: ['heading', 'summary'],
     defaultType: 'body',
     audienceWord: 'reader',
     countRange: [3, 20],

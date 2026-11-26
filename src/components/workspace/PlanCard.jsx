@@ -304,10 +304,13 @@ export default function PlanCard({ id, type, onOpen }) {
         <>
           <p className="text-[13px] text-slate m-0">
             Here is the plan: {items.length} {kind.nounPlural}
-            {/* The planner never pads: fewer items than asked means the documents had less to say. */}
-            {brief.count > items.length && brief.scope !== 'full'
-              ? ` (you asked for up to ${brief.count}; the documents support ${items.length} without repeating facts)`
-              : ''}. Edit anything, then generate.
+            {/* The planner never pads: fewer content items than asked means the documents had less to say. */}
+            {(() => {
+              const content = items.filter((it) => !kind.bookends.includes(it[kind.typeKey])).length;
+              return brief.count > content && brief.scope !== 'full'
+                ? ` (you asked for up to ${brief.count} besides the opening and closing; the documents support ${content} without repeating facts)`
+                : '';
+            })()}. Edit anything, then generate.
           </p>
           <ol className="list-none m-0 p-0 flex flex-col gap-2">
             {items.map((it, i) => (
@@ -337,7 +340,7 @@ export default function PlanCard({ id, type, onOpen }) {
                 <span className="hint text-[12px]">Changing this or the number of {kind.nounPlural} needs “Plan again”.</span>
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="label">Up to this many {kind.nounPlural}</span>
+                <span className="label">Up to this many {kind.nounPlural}, besides the opening and closing</span>
                 <select className="field py-1.5 text-[13px]" value={brief.count || kind.defaultCount}
                   onChange={(e) => setBriefField('count', Number(e.target.value))}>
                   {countOptions.map((n) => <option key={n} value={n}>{n}</option>)}
