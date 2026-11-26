@@ -32,12 +32,35 @@ async function request(path, options = {}) {
   return json.data;
 }
 
+// Every stream ends with { phase: 'done' } or { phase: 'error' }, and the server sends a keep-alive every few
+// seconds meanwhile. A stream that closes without its end, or goes silent, has lost the server (a restart once
+// left a chat on "Rewriting..." for ten minutes): it fails instead of waiting forever.
+const STREAM_SILENCE_MS = 30000;
+const LOST = 'The connection to the server was lost before it finished. Please try again.';
+
 /**
  * POSTs and reads a server-sent event stream, calling onEvent for each event. Resolves with the last event.
  * body: an object (sent as JSON) or FormData.
  */
 async function stream(path, body, onEvent = () => {}, signal) {
   const isForm = body instanceof FormData;
+  const watchdog = new AbortController();
+  let silence = null;
+  const listen = () => { clearTimeout(silence); silence = setTimeout(() => watchdog.abort(), STREAM_SILENCE_MS); };
+  signal?.addEventListener('abort', () => watchdog.abort(), { once: true });
+  listen();
+  try {
+    return await readStream(path, body, isForm, onEvent, watchdog.signal, listen);
+  } catch (err) {
+    if (watchdog.signal.aborted && !signal?.aborted) throw new Error(LOST, { cause: err });
+    if (err instanceof TypeError) throw new Error(LOST, { cause: err }); // the network dropped
+    throw err;
+  } finally {
+    clearTimeout(silence);
+  }
+}
+
+async function readStream(path, body, isForm, onEvent, signal, listen) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
     signal,
@@ -54,7 +77,11 @@ async function stream(path, body, onEvent = () => {}, signal) {
   let last = null;
   for (;;) {
     const { done, value } = await reader.read();
-    if (done) return last;
+    if (done) {
+      if (last?.phase !== 'done' && last?.phase !== 'error') throw new Error(LOST);
+      return last;
+    }
+    listen();
     buffer += decoder.decode(value, { stream: true });
     const events = buffer.split('\n\n');
     buffer = events.pop();
