@@ -3,10 +3,14 @@ import { documents } from '../services/api';
 import { UploadContext } from './upload';
 
 
+// Where the progress bar stands when each import step ends, in order. A step that reports its own progress
+// (current of total: converting pages, describing figures) fills the stretch from the step before it.
+// Describing figures takes the largest share: ~10-20 s per figure.
 const phaseWeights = {
-  uploaded: 5, splitting: 10, converting: 55, chunking: 65,
-  embedding: 75, storing: 80, summarizing: 90, done: 100, error: 0,
+  uploaded: 5, splitting: 10, converting: 45, chunking: 50, embedding: 55,
+  storing: 58, describing: 92, summarizing: 97, done: 100, error: 0,
 };
+const phaseOrder = Object.keys(phaseWeights);
 
 export function UploadProvider({ children }) {
   const [uploading, setUploading] = useState(false);
@@ -29,10 +33,10 @@ export function UploadProvider({ children }) {
       if (evt.phase === 'uploaded') onStarted?.();
       setUploadPhase(evt.phase);
       setUploadMsg(evt.message || '');
-      if (evt.phase === 'converting' && evt.total > 1) {
-        const base = phaseWeights.splitting;
-        const range = phaseWeights.converting - base;
-        setUploadProgress(Math.round(base + (evt.current / evt.total) * range));
+      const step = phaseOrder.indexOf(evt.phase);
+      if (step > 0 && evt.current != null && evt.total > 1) {
+        const base = phaseWeights[phaseOrder[step - 1]];
+        setUploadProgress(Math.round(base + (evt.current / evt.total) * (phaseWeights[evt.phase] - base)));
       } else if (phaseWeights[evt.phase] !== undefined) {
         setUploadProgress(phaseWeights[evt.phase]);
       }

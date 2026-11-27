@@ -18,7 +18,7 @@ export default function Assets() {
   const [list, setList] = useState(null);
   const [error, setError] = useState(null);
   const [viewing, setViewing] = useState(null); // figure id
-  const [describing, setDescribing] = useState(false);
+  const [canDescribe, setCanDescribe] = useState(false);
   const [usingIn, setUsingIn] = useState(null);
   const [deleting, setDeleting] = useState(null); // { ids, usage }
   const [selectMode, setSelectMode] = useState(false);
@@ -34,7 +34,7 @@ export default function Assets() {
     return figuresApi.list({ q, documentIds: docFilter ? [Number(docFilter)] : [] })
       .then((d) => {
         setList(d.figures);
-        setDescribing(Boolean(d.describing));
+        setCanDescribe(Boolean(d.canDescribe));
         setError(null);
         // Keep only selections that are still shown.
         const shown = new Set(d.figures.map((f) => f.id));
@@ -47,14 +47,6 @@ export default function Assets() {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
   }, [q, docFilter]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // While figures are being described in the background, check for new descriptions now and then.
-  const waiting = describing && (list || []).some((f) => !f.description && ['pending', 'working'].includes(f.description_status));
-  useEffect(() => {
-    if (!waiting) return undefined;
-    const t = setInterval(() => { if (!document.hidden) load(); }, 20000);
-    return () => clearInterval(t);
-  }, [waiting, q, docFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function saved(updated) {
     setList((all) => all.map((f) => (f.id === updated.id ? { ...f, ...updated } : f)));
@@ -174,7 +166,7 @@ export default function Assets() {
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {g.figures.map((f) => (
-                <FigureCard key={f.id} figure={f} selecting={selecting} selected={selected.has(f.id)} describing={describing}
+                <FigureCard key={f.id} figure={f} selecting={selecting} selected={selected.has(f.id)}
                   onToggle={(shift) => toggle(f, shift)}
                   onView={() => setViewing(f.id)} onUse={() => setUsingIn(f)}
                   onDelete={() => startDelete([f.id])} />
@@ -212,7 +204,7 @@ export default function Assets() {
       )}
 
       {viewingFigure && (
-        <FigureLightbox figure={viewingFigure} describing={describing} onSaved={saved} onClose={() => setViewing(null)} />
+        <FigureLightbox figure={viewingFigure} canDescribe={canDescribe} onSaved={saved} onClose={() => setViewing(null)} />
       )}
       {usingIn && <UseInDialog figure={usingIn} onClose={() => setUsingIn(null)} />}
       {deleting && (
@@ -235,7 +227,7 @@ export default function Assets() {
   );
 }
 
-function FigureCard({ figure: f, selecting, selected, describing, onToggle, onView, onUse, onDelete }) {
+function FigureCard({ figure: f, selecting, selected, onToggle, onView, onUse, onDelete }) {
   const url = figuresApi.imageUrl(f.id);
   return (
     <div className={`group relative bg-white border rounded-lg p-2 flex flex-col gap-1.5 ${
@@ -257,12 +249,7 @@ function FigureCard({ figure: f, selecting, selected, describing, onToggle, onVi
         {selected && <Check size={13} strokeWidth={3} />}
       </span>
       <span className="text-[12px] leading-snug line-clamp-2 min-h-[2.5em]" title={f.caption || ''}>{f.caption || 'Untitled figure'}</span>
-      <span className="text-[11px] text-slate flex items-center gap-1">
-        p. {f.page ?? '?'}
-        {describing && !f.description && ['pending', 'working'].includes(f.description_status) && (
-          <><span>·</span><Loader2 size={11} className="animate-spin" />Describing…</>
-        )}
-      </span>
+      <span className="text-[11px] text-slate">p. {f.page ?? '?'}</span>
       <div className={`flex items-center gap-0.5 -mx-1 ${selecting ? 'invisible' : ''}`}>
         <button type="button" onClick={onUse} className="btn-ghost text-[12px] px-2 py-1 mr-auto"><Plus size={13} /> Use in…</button>
         <a href={url} download={`figure-${f.id}.png`} className="icon-btn" aria-label="Download" title="Download"><Download size={14} /></a>

@@ -5,13 +5,12 @@ import { figures as figuresApi } from '../../services/api';
 /**
  * Full-size view of a document figure, with what the picture shows (its description). Escape or a click outside
  * closes it. With onSaved (the Assets page, for the document's owner) the caption and description can be
- * corrected: an edit is marked "Checked by you" and the model never replaces it.
- * `describing`: whether figures waiting for a description will get one (a vision model is set).
+ * corrected (marked "Checked by you"), or, with canDescribe (a vision model is set), described again by the model.
  */
-export default function FigureLightbox({ figure, onClose, onSaved, describing = false }) {
+export default function FigureLightbox({ figure, onClose, onSaved, canDescribe = false }) {
   const [editing, setEditing] = useState(null); // 'caption' | 'description'
   const [draft, setDraft] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false); // false, true, or 'describing' (the model is looking at it)
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -31,7 +30,7 @@ export default function FigureLightbox({ figure, onClose, onSaved, describing = 
   }
 
   async function save(changes) {
-    setBusy(true);
+    setBusy(changes.redescribe ? 'describing' : true);
     setError(null);
     try {
       const { figure: updated } = await figuresApi.update(figure.id, changes);
@@ -42,9 +41,6 @@ export default function FigureLightbox({ figure, onClose, onSaved, describing = 
     }
     setBusy(false);
   }
-
-  const status = figure.description_status;
-  const waiting = describing && !figure.description && (status === 'pending' || status === 'working');
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6" onClick={onClose}
@@ -74,7 +70,7 @@ export default function FigureLightbox({ figure, onClose, onSaved, describing = 
         {editing === 'description' ? (
           <Editor value={draft} onChange={setDraft} busy={busy} rows={4} label="What the picture shows"
             onSave={() => save({ description: draft })} onCancel={() => setEditing(null)} />
-        ) : (figure.description || waiting || (onSaved && describing)) && (
+        ) : (figure.description || onSaved) && (
           <div className="flex flex-col gap-1.5 max-w-[760px] border-t border-border pt-3">
             <div className="flex items-center gap-2 flex-wrap text-[12px]">
               <span className="font-semibold text-navy">What the picture shows</span>
@@ -94,19 +90,18 @@ export default function FigureLightbox({ figure, onClose, onSaved, describing = 
                   <button type="button" disabled={busy} onClick={() => edit('description')} className="btn-ghost text-[12px] px-2 py-1">
                     <Pencil size={13} />{figure.description ? 'Edit' : 'Write one'}
                   </button>
-                  {describing && !waiting && (
+                  {canDescribe && (
                     <button type="button" disabled={busy} onClick={() => save({ redescribe: true })}
                       className="btn-ghost text-[12px] px-2 py-1" title="Have the model look at the figure again">
-                      <RotateCcw size={13} />Describe again
+                      {busy === 'describing' ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                      {busy === 'describing' ? 'Describing… about 20 s' : figure.description ? 'Describe again' : 'Describe'}
                     </button>
                   )}
                 </span>
               )}
             </div>
             {figure.description ? <p className="m-0 text-[13px] leading-relaxed">{figure.description}</p>
-              : waiting ? <p className="m-0 text-[13px] text-slate flex items-center gap-1.5"><Loader2 size={13} className="animate-spin" />Describing… this runs in the background; deck and document generation goes first.</p>
-                : status === 'failed' ? <p className="m-0 text-[13px] text-slate">The model couldn’t describe this figure.</p>
-                  : <p className="m-0 text-[13px] text-slate">No description yet.</p>}
+              : <p className="m-0 text-[13px] text-slate">No description.</p>}
           </div>
         )}
         {error && <p className="text-red-700 text-[13px] m-0">{error}</p>}
