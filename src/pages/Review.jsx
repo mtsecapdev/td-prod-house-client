@@ -238,7 +238,10 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
         if (to < 0 || to >= (gen?.outline?.slides?.length || 0)) return;
         e.preventDefault();
         setActiveSlide(to);
-        navRef.current?.querySelector(`[data-slide-index="${to}"]`)?.scrollIntoView({ block: 'nearest' });
+        // Focus follows the selection (so Delete removes the slide shown), and the list keeps it in view.
+        const button = navRef.current?.querySelector(`[data-slide-index="${to}"] > button`);
+        button?.focus({ preventScroll: true });
+        button?.scrollIntoView({ block: 'nearest' });
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -446,8 +449,9 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
           <ol className="list-none m-0 p-0 flex flex-col gap-1">
             {slides.map((s, i) => (
               <li key={i} data-slide-index={i} className="group/item relative">
+                {/* No focus ring: the selected slide's border already marks it, and focus follows the selection. */}
                 <button type="button" onClick={() => setActiveSlide(i)}
-                  className={`w-full flex flex-col lg:flex-row gap-1 lg:gap-2 items-center min-h-[40px] px-1 lg:px-1.5 py-1 rounded-lg text-left cursor-pointer border-2 transition-all ${
+                  className={`focus-visible:outline-none w-full flex flex-col lg:flex-row gap-1 lg:gap-2 items-center min-h-[40px] px-1 lg:px-1.5 py-1 rounded-lg text-left cursor-pointer border-2 transition-all ${
                     i === activeSlide ? 'border-navy bg-[#F5F8FC] shadow-sm' : 'border-transparent hover:bg-[#F0F4F8] hover:border-[#E2E8F0]'
                   }`}>
                   <div className={`w-[52px] h-[30px] lg:w-[48px] lg:h-[27px] shrink-0 rounded-[3px] overflow-hidden shadow-sm border border-border ${s.content ? '' : 'opacity-30 animate-pulse'}`}>
