@@ -279,19 +279,11 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
     saveOutline(updatedGen);
   }
 
-  // The deck's name is its title slide's title: renaming changes that slide (one undo step on it).
-  function rename(name) {
-    const first = slides[0];
-    if (!first) return;
-    if (first.content) {
-      getUndoStack(0).push(JSON.parse(JSON.stringify(first.content)));
-      getRedoStack(0).length = 0;
-      syncStacks(0);
-    }
-    const updatedSlides = slides.map((s, i) => (i === 0 ? { ...s, title: name, content: s.content && { ...s.content, title: name } } : s));
-    const updatedGen = { ...gen, outline: { ...gen.outline, slides: updatedSlides } };
-    setGen(updatedGen);
-    saveOutline(updatedGen);
+  // The deck's name: the one the user gave it, else its title slide's title (which it follows as it is written).
+  const displayName = (gen.named ? gen.name : slides[0]?.content?.title || slides[0]?.title || gen.name) || 'Slide deck';
+  async function rename(name) {
+    setGen((g) => ({ ...g, name, named: true }));
+    try { await generations.rename(id, name); } catch (err) { console.error('Rename failed:', err); }
   }
 
   function updateSlideField(field, value) {
@@ -399,8 +391,7 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
       {/* Top bar */}
       <div className="shrink-0 px-4 py-2 border-b border-border bg-white flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <EditableName value={slides[0]?.content?.title || slides[0]?.title || gen.name || 'Slide deck'} onRename={rename}
-            disabledReason={live.phase === 'writing' ? 'You can rename it once writing finishes' : null} />
+          <EditableName value={displayName} onRename={rename} />
           <span className="chip-muted text-[11px]">Draft</span>
           {saving && <span className="text-xs text-slate animate-pulse">Saving...</span>}
           {live.phase === 'writing' && (

@@ -2,10 +2,9 @@ import { useRef, useState } from 'react';
 
 /**
  * A deck's or document's name in the editor's top bar, renamed in place like a spreadsheet's title: click it, type,
- * Enter or click away to keep, Escape to cancel. The name is the title slide's / title page's title, so renaming
- * changes that too (onRename). disabledReason: why it can't be renamed now (shown as its tooltip).
+ * Enter or click away to keep, Escape to cancel. The name is its own: renaming leaves the title slide as it is.
  */
-export default function EditableName({ value, onRename, disabledReason = null }) {
+export default function EditableName({ value, onRename }) {
   const [draft, setDraft] = useState(null);
   const cancelled = useRef(false);
 
@@ -30,9 +29,8 @@ export default function EditableName({ value, onRename, disabledReason = null })
   }
   return (
     <h1 className="m-0 min-w-0">
-      <button type="button" onClick={() => !disabledReason && setDraft(value)} title={disabledReason || 'Rename'}
-        className={`${text} block max-w-[200px] lg:max-w-[520px] truncate text-left px-1.5 -mx-1.5 py-0.5 rounded-md border border-transparent bg-transparent text-ink ${
-          disabledReason ? 'cursor-default' : 'cursor-text hover:border-border'}`}>
+      <button type="button" onClick={() => setDraft(value)} title="Rename"
+        className={`${text} block max-w-[200px] lg:max-w-[520px] truncate text-left px-1.5 -mx-1.5 py-0.5 rounded-md border border-transparent bg-transparent text-ink cursor-text hover:border-border`}>
         {value}
       </button>
     </h1>

@@ -155,6 +155,8 @@ export const generations = {
   list: () => request('/generations'),
   // ── Planning (decks and documents) ──
   updateBrief: (id, brief) => request(`/generations/${id}/brief`, { method: 'PUT', body: JSON.stringify({ brief }) }),
+  // The deck's/document's own name (not its title slide's title); '' goes back to following the title slide.
+  rename: (id, name) => request(`/generations/${id}/name`, { method: 'PUT', body: JSON.stringify({ name }) }),
   templates: () => request('/generations/templates'),
   // A company .pptx: its theme colours and fonts become a template; decks build on its slide masters.
   uploadTemplate: (file, name) => {

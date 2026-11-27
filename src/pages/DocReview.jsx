@@ -531,12 +531,11 @@ export default function DocReview({ id, reloadKey = 0, addAfter = null, focus = 
     saveOutline(updatedGen);
   }
 
-  // The document's name is its title page's title: renaming changes that section (one undo step on it).
-  function rename(name) {
-    const first = sections[0];
-    if (!first) return;
-    const updatedSections = sections.map((s, i) => (i === 0 ? { ...s, title: name, content: s.content && { ...s.content, title: name } } : s));
-    applyUpdateAt(0, { ...gen, outline: { ...gen.outline, sections: updatedSections } });
+  // The document's name: the one the user gave it, else its title page's title (followed as it is written).
+  const displayName = (gen.named ? gen.name : sections[0]?.content?.title || sections[0]?.title || gen.name) || 'Training document';
+  async function rename(name) {
+    setGen((g) => ({ ...g, name, named: true }));
+    try { await generations.rename(id, name); } catch (err) { console.error('Rename failed:', err); }
   }
 
   function updateFieldAt(secIdx, field, value) {
@@ -729,8 +728,7 @@ export default function DocReview({ id, reloadKey = 0, addAfter = null, focus = 
       {/* Top bar */}
       <div className="shrink-0 px-4 py-2 border-b border-border bg-white flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <EditableName value={sections[0]?.content?.title || sections[0]?.title || gen.name || 'Training document'} onRename={rename}
-            disabledReason={live.phase === 'writing' ? 'You can rename it once writing finishes' : null} />
+          <EditableName value={displayName} onRename={rename} />
           <span className="chip-muted text-[11px]">Draft</span>
           {saving && <span className="text-xs text-slate animate-pulse">Saving...</span>}
           {live.phase === 'writing' && (
