@@ -221,6 +221,9 @@ export const figures = {
     return request(`/figures?${params}`);
   },
   imageUrl: (id) => `${BASE}/figures/${id}/image`,
+  // { caption?, description? } corrects them (marked as checked by a person); { redescribe: true } asks the
+  // model to describe the figure again.
+  update: (id, changes) => request(`/figures/${id}`, { method: 'PATCH', body: JSON.stringify(changes) }),
   // Bulk actions take a list of figure ids (one id is fine).
   downloadUrl: (ids) => `${BASE}/figures/download?ids=${ids.join(',')}`,
   usage: (ids) => request('/figures/usage', { method: 'POST', body: JSON.stringify({ ids }) }),
