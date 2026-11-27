@@ -11,6 +11,7 @@ import { useLiveWrite } from '../components/plan/useLiveWrite';
 import { useItemDelete, shiftedHistory } from '../components/plan/useItemDelete';
 import DeletedToast from '../components/plan/DeletedToast';
 import { useTemplates, findTemplate, templateStyle } from '../components/plan/templates';
+import EditableName from '../components/plan/EditableName';
 
 function AutoTextarea({ value, onChange, className = '', ...props }) {
   const ref = useRef(null);
@@ -530,6 +531,14 @@ export default function DocReview({ id, reloadKey = 0, addAfter = null, focus = 
     saveOutline(updatedGen);
   }
 
+  // The document's name is its title page's title: renaming changes that section (one undo step on it).
+  function rename(name) {
+    const first = sections[0];
+    if (!first) return;
+    const updatedSections = sections.map((s, i) => (i === 0 ? { ...s, title: name, content: s.content && { ...s.content, title: name } } : s));
+    applyUpdateAt(0, { ...gen, outline: { ...gen.outline, sections: updatedSections } });
+  }
+
   function updateFieldAt(secIdx, field, value) {
     updateFieldsAt(secIdx, { [field]: value });
   }
@@ -720,9 +729,8 @@ export default function DocReview({ id, reloadKey = 0, addAfter = null, focus = 
       {/* Top bar */}
       <div className="shrink-0 px-4 py-2 border-b border-border bg-white flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <h1 className="font-heading text-[18px] leading-6 font-bold tracking-tight m-0 truncate max-w-[200px] lg:max-w-none">
-            {gen.name || 'Training document'}
-          </h1>
+          <EditableName value={sections[0]?.content?.title || sections[0]?.title || gen.name || 'Training document'} onRename={rename}
+            disabledReason={live.phase === 'writing' ? 'You can rename it once writing finishes' : null} />
           <span className="chip-muted text-[11px]">Draft</span>
           {saving && <span className="text-xs text-slate animate-pulse">Saving...</span>}
           {live.phase === 'writing' && (
