@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Download, Trash2, FileSliders, FileText, Image, MessageSquare } from 'lucide-react';
+import { Search, Download, Trash2, FileSliders, FileText, MessageSquare } from 'lucide-react';
 import { assets } from '../services/api';
 
 const kindOptions = [
   { value: '', label: 'All types' },
   { value: 'deck', label: 'Slide decks', icon: FileSliders },
   { value: 'doc', label: 'Documents', icon: FileText },
-  { value: 'image', label: 'Images', icon: Image },
 ];
 
 function KindIcon({ kind, size = 18 }) {
-  const icons = { deck: FileSliders, doc: FileText, image: Image };
+  const icons = { deck: FileSliders, doc: FileText };
   const Icon = icons[kind] || FileSliders;
   return <Icon size={size} />;
 }
@@ -98,7 +97,7 @@ export default function Library() {
                 </p>
               </div>
               {item.conversation_id && (
-                <Link to={item.kind === 'image' ? `/c/${item.conversation_id}` : `/c/${item.conversation_id}/g/${item.generation_id}`}
+                <Link to={`/c/${item.conversation_id}/g/${item.generation_id}`}
                   className="btn-ghost text-[13px] no-underline" title="Open in the chat it was made in">
                   <MessageSquare size={15} />Open
                 </Link>

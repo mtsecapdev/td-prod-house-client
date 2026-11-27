@@ -47,7 +47,7 @@ export default function Pictures({ pictures = [], onChange, slide = false, boxes
         <FigurePicker documentIds={documentIds} title="Replace the figure"
           onPick={(f) => {
             // Same place and width; the new figure's own caption; crop starts fresh (it was for the old picture).
-            update(replacing, { figure_id: f.id, image_id: undefined, caption: figureCaption(f.caption) || pictures[replacing].caption, crop: undefined });
+            update(replacing, { figure_id: f.id, caption: figureCaption(f.caption) || pictures[replacing].caption, crop: undefined });
             setReplacing(null);
           }}
           onClose={() => setReplacing(null)} />

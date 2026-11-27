@@ -1,10 +1,9 @@
-import { AlertTriangle, CheckCircle2, FileSliders, FileText, Image, Loader2, PencilLine } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileSliders, FileText, Loader2, PencilLine } from 'lucide-react';
 import AnswerFigures from '../AnswerFigures';
 import AnswerText from './AnswerText';
 import CopyButton from './CopyButton';
 import GenerationCard from './GenerationCard';
 import AgentPlanCard from './AgentPlanCard';
-import ImageCard from './ImageCard';
 import { InterviewQuestion, PlanSummary } from './InterviewCard';
 
 const PHASES = {
@@ -19,12 +18,10 @@ const PHASES = {
   starting: 'Reading your documents…',
   interview: 'Reading your answer…',
   planning_interview: 'Working on it…',
-  imaging: 'Planning the image…',
 };
 const SKILL_TAGS = {
   deck: [FileSliders, 'Slide deck'],
   doc: [FileText, 'Training document'],
-  image: [Image, 'Image'],
 };
 const NOUN = { deck: 'slide', doc: 'section' };
 
@@ -77,12 +74,6 @@ export default function MessageList({
             <GenerationCard key={m.id} generationId={m.data.generation_id} type={m.data.type}
               open={openGenerationId === m.data.generation_id}
               onOpen={() => onOpenGeneration(m.data.generation_id)} />
-          );
-        }
-        if (m.kind === 'image') {
-          return (
-            <ImageCard key={m.id} data={m.data} addLabel={addLabel} onAdd={onAddPicture}
-              onPlaced={onDeckChanged} onShowItem={onShowItem} />
           );
         }
         if (m.kind === 'interview') {

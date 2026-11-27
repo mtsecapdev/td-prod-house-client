@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import AccountMenu from './AccountMenu';
 import {
-  Plus, Search, Library, Images, PanelLeftClose, PanelLeftOpen, MessageSquare, Trash2, FileSliders, FileText, Image, Layers,
+  Plus, Search, Library, Images, PanelLeftClose, PanelLeftOpen, MessageSquare, Trash2, FileSliders, FileText, Layers,
 } from 'lucide-react';
 
-const MADE_ICONS = { deck: FileSliders, doc: FileText, image: Image };
+const MADE_ICONS = { deck: FileSliders, doc: FileText };
 
 /**
  * The app's sidebar on every page: new chat, search, Library, Assets, and recent conversations. Collapses to an

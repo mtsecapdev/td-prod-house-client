@@ -1,15 +1,12 @@
-import { figures, generations } from '../../services/api';
+import { figures } from '../../services/api';
 
-const figureUrl = (id) => figures.imageUrl(id);
-const imageUrl = (id) => generations.imageUrl(id);
+// Placement rules shared by the slide/section editors for pictures (document figures).
 
-// Placement rules shared by the slide/section editors for pictures: document figures and generated images.
-
-/** Whether a placed picture shows this source (a figure row or { image_id }). */
-export const samePicture = (p, source) => (source.image_id ? p.image_id === source.image_id : p.figure_id === source.id);
+/** Whether a placed picture shows this figure. */
+export const samePicture = (p, figure) => p.figure_id === figure.id;
 
 /** Where a picture's file is served from. */
-export const pictureUrl = (p) => (p.image_id ? imageUrl(p.image_id) : figureUrl(p.figure_id));
+export const pictureUrl = (p) => figures.imageUrl(p.figure_id);
 
 const SLIDE_ASPECT = 9 / 16;
 
@@ -19,16 +16,12 @@ export function figureCaption(caption) {
 }
 
 /**
- * A new picture for a slide/section: a document figure (a figure row) or a generated image ({ image_id,
- * caption, width, height }). On a slide (box: where the layout engine puts it, [x, y, w, h] fractions) it gets
+ * A new picture for a slide/section from a document figure (a figure row). On a slide (box: where the layout engine puts it, [x, y, w, h] fractions) it gets
  * an explicit place, fitted into the box and nudged so several added pictures don't sit exactly on top of
  * each other.
  */
-export function newPicture(source, { box, existing = 0 } = {}) {
-  const figure = source;
-  const picture = source.image_id
-    ? { image_id: source.image_id, caption: source.caption || '' }
-    : { figure_id: source.id, caption: figureCaption(source.caption) };
+export function newPicture(figure, { box, existing = 0 } = {}) {
+  const picture = { figure_id: figure.id, caption: figureCaption(figure.caption) };
   if (!box || !figure.width || !figure.height) return picture;
   const [bx, by, bw, bh] = box;
   const aspect = figure.height / figure.width;            // picture height / width

@@ -42,7 +42,6 @@ export default function Workspace() {
   const wide = useMediaQuery('(min-width: 1360px)');
   const { reloadConversations, setCompactSidebar } = useOutletContext();
   const { uploading, uploadMsg, uploadProgress, uploadFileName, startUpload } = useUpload();
-  const [skill, setSkill] = useState(null);
   const [panelGen, setPanelGen] = useState(null);
   const [panel, setPanel] = useState(() => panelDefaults(gid));
   const [reloadKey, setReloadKey] = useState(0);
@@ -57,7 +56,6 @@ export default function Workspace() {
       setMessages([]);
       setPending(null);
       setError(null);
-      setSkill(null);
     }
   }
   // Opening another deck/document resets what the panel had selected.
@@ -108,24 +106,23 @@ export default function Workspace() {
   }
 
   const kind = panelGen && KIND[panelGen.type];
-  const editing = gid && panelGen && panelGen.id === gid && panel.scope && !skill ? {
+  const editing = gid && panelGen && panelGen.id === gid && panel.scope ? {
     type: panelGen.type, noun: kind.noun, product: kind.product,
     scope: panel.scope, index: panel.selected, after: panel.addAfter,
   } : null;
 
   /**
    * Sends a message: a skill request, a change to the open deck/document, or a question. `forced` sends a change
-   * to one item regardless of the box's mode (the editor's Shorter/Simpler buttons); `skillOverride` sends it as
-   * that skill (a typed "/deck …" command).
+   * to one item regardless of the box's mode (the editor's Shorter/Simpler buttons); `skill` sends it as that
+   * skill (a chip, or a typed "/deck …" command).
    */
-  async function send(text, forced, skillOverride, picked) {
+  async function send(text, forced, skill, picked) {
     setError(null);
-    const skill_ = skillOverride || skill;
     // While the planning interview asks a question, a message is its answer.
-    const answering = !forced && !skill_ && interviewQuestion;
-    const mode = forced ? 'edit' : skill_ ? 'skill' : answering ? 'ask' : editing ? 'edit' : 'ask';
+    const answering = !forced && !skill && interviewQuestion;
+    const mode = forced ? 'edit' : skill ? 'skill' : answering ? 'ask' : editing ? 'edit' : 'ask';
     const scope = forced ? 'item' : editing?.scope;
-    setPending({ content: text, phase: answering ? 'interview' : mode === 'skill' ? (skill_ === 'image' ? 'imaging' : 'starting') : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
+    setPending({ content: text, phase: answering ? 'interview' : mode === 'skill' ? 'starting' : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
     try {
       let conv = conversation;
       if (!conv) {
@@ -136,8 +133,7 @@ export default function Workspace() {
       }
       let added;
       if (mode === 'skill') {
-        added = (await conversations.skill(conv.id, skill_, text)).messages;
-        setSkill(null);
+        added = (await conversations.skill(conv.id, skill, text)).messages;
       } else {
         const target = mode === 'edit' ? {
           generationId: gid,
@@ -215,13 +211,13 @@ export default function Workspace() {
       )}
       <Composer variant={variant}
         docs={docs} docIds={docIds} onDocIdsChange={setDocIds} onDocsChanged={docsChanged}
-        skill={skill} onSkill={setSkill} onStartSkill={(type) => { setSkill(null); send('', null, type); }}
+        onStartSkill={(type) => send('', null, type)}
         edit={editing}
         onEditScope={(scope) => setPanel((p) => ({ ...p, scope }))}
         onStopEditing={() => setPanel((p) => ({ ...p, scope: null, addAfter: null }))}
         disabled={Boolean(pending)}
         answering={interviewQuestion}
-        onSend={(text, skillOverride) => send(text, null, skillOverride)} />
+        onSend={(text, skill) => send(text, null, skill)} />
     </div>
   );
 

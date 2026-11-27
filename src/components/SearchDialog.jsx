@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MessageSquare, FileSliders, FileText, Image, X } from 'lucide-react';
+import { Search, MessageSquare, FileSliders, FileText, X } from 'lucide-react';
 import { generations } from '../services/api';
 
-const ICONS = { conversation: MessageSquare, deck: FileSliders, doc: FileText, image: Image };
-const LABELS = { conversation: 'Chat', deck: 'Slide deck', doc: 'Training document', image: 'Image' };
+const ICONS = { conversation: MessageSquare, deck: FileSliders, doc: FileText };
+const LABELS = { conversation: 'Chat', deck: 'Slide deck', doc: 'Training document' };
 
 /** Search chats and the decks, documents and images made in them (Ctrl+K). */
 export default function SearchDialog({ conversations, onClose }) {
@@ -23,7 +23,7 @@ export default function SearchDialog({ conversations, onClose }) {
       ...conversations.map((c) => ({ kind: 'conversation', id: `c${c.id}`, title: c.title, to: `/c/${c.id}`, at: c.updated_at })),
       ...made.map((g) => ({
         kind: g.type, id: `g${g.id}`, title: g.name, at: g.updated_at || g.created_at,
-        to: g.type === 'image' ? `/c/${g.conversation_id}` : `/c/${g.conversation_id}/g/${g.id}`,
+        to: `/c/${g.conversation_id}/g/${g.id}`,
       })),
     ];
     return all.filter((r) => !term || (r.title || '').toLowerCase().includes(term))

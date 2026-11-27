@@ -142,7 +142,7 @@ export const conversations = {
     cancel: (id) => request(`/conversations/${id}/interview/cancel`, { method: 'POST' }),
     plan: (id) => request(`/conversations/${id}/interview/plan`, { method: 'POST' }),
   },
-  // Makes a deck ('deck'), training document ('doc') or image ('image') from the conversation; returns { messages }.
+  // Starts planning a deck ('deck') or training document ('doc') from the conversation; returns { messages }.
   skill: (id, type, request_) =>
     request(`/conversations/${id}/skills/${type}`, { method: 'POST', body: JSON.stringify({ request: request_ }) }),
   applyPlan: (id, messageId, steps) =>
@@ -195,10 +195,6 @@ export const generations = {
   downloadUrl: (id) => `${BASE}/generations/${id}/file`,
   openInDeckCraft: (id) => request(`/generations/${id}/open-deckcraft`, { method: 'POST' }),
   openInWordCraft: (id) => request(`/generations/${id}/open-wordcraft`, { method: 'POST' }),
-
-  // A generated image (the image skill); retryImage generates it again after a failure.
-  imageUrl: (id) => `${BASE}/generations/${id}/image`,
-  retryImage: (id) => request(`/generations/${id}/image`, { method: 'POST' }),
 
   // Renders Mermaid typed by the user; returns { diagram_file }. Throws with Mermaid's message if invalid.
   renderDiagram: (id, mermaidCode) =>
