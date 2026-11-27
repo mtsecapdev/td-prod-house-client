@@ -117,7 +117,7 @@ export default function Assets() {
     <main className={`max-w-[1180px] w-[90%] mx-auto pt-8 flex flex-col gap-5 ${selecting ? 'pb-24' : 'pb-8'}`}>
       <div>
         <h1 className="font-heading text-[24px] font-bold text-navy m-0">Assets</h1>
-        <p className="hint m-0 mt-1">Figures saved from your uploaded documents. Use them in slides and training documents.</p>
+        <p className="hint m-0 mt-1">Figures saved from your uploaded documents.</p>
       </div>
 
       <div className="flex gap-3 items-center flex-wrap">
@@ -140,7 +140,7 @@ export default function Assets() {
 
       {list === null ? <p className="hint">Loading…</p> : groups.length === 0 ? (
         <p className="hint">
-          {q || docFilter ? 'No figures match.' : 'No figures yet. Figures are saved when you upload a PDF; documents uploaded before this was added need re-uploading.'}
+          {q || docFilter ? 'No figures match.' : 'No figures yet.'}
         </p>
       ) : groups.map(([docId, g]) => {
         const allInGroup = g.figures.every((f) => selected.has(f.id));

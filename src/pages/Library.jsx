@@ -62,7 +62,7 @@ export default function Library() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-[360px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate pointer-events-none" />
-          <input className="field pl-9 w-full" placeholder="Search saved decks, documents and images"
+          <input className="field pl-9 w-full" placeholder="Search saved decks, documents etc"
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <select className="field w-auto min-w-[160px]" value={kind}
@@ -80,7 +80,7 @@ export default function Library() {
           <p className="text-slate text-[15px]">
             {search || kind
               ? 'Nothing matches your search.'
-              : <>Nothing saved yet. Use <strong>Save</strong> in a deck or document, or <strong>Save to Library</strong> on an image, to keep a copy here.</>}
+              : <>Nothing saved yet.</>}
           </p>
         </div>
       ) : (

@@ -44,7 +44,7 @@ export default function ChangePassword({ forced = false }) {
       <AuthField label={forced ? 'Temporary password' : 'Current password'} icon={KeyRound} password autoFocus
         autoComplete="current-password" value={current} onChange={setCurrent} />
       <AuthField label="New password" icon={Lock} password autoComplete="new-password" value={next} onChange={setNext}
-        hint={`At least ${MIN_LENGTH} characters, not containing your username. A short sentence is easy to remember.`} />
+        hint={`At least ${MIN_LENGTH} characters, not containing your username.`} />
       <AuthField label="New password again" icon={Lock} password autoComplete="new-password" value={again} onChange={setAgain} />
       {(problem || error) && <p role="alert" className="m-0 -mt-1 text-[13px] text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{problem || error}</p>}
       {done && !forced && <p role="status" className="m-0 text-[13px] text-[#047857]">Password changed. You've been signed out on other devices.</p>}
@@ -68,7 +68,6 @@ export default function ChangePassword({ forced = false }) {
     <div className="max-w-[440px] mx-auto px-4 py-10 flex flex-col gap-5">
       <div>
         <h1 className="m-0 font-heading text-[24px] font-bold text-navy">Change password</h1>
-        <p className="m-0 mt-1 text-[14px] text-slate">Signed in as {user?.username}.</p>
       </div>
       <div className="card p-6">{form}</div>
       <button type="button" onClick={() => navigate(-1)} className="btn-ghost self-start text-[13px]">Back</button>

@@ -77,7 +77,7 @@ export default function Users() {
     <div className="max-w-[960px] mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
       <div>
         <h1 className="m-0 font-heading text-[24px] font-bold text-navy">Users</h1>
-        <p className="m-0 mt-1 text-[14px] text-slate">Add the people who can use TDPH. Each person sees only their own documents, chats and decks.</p>
+        <p className="m-0 mt-1 text-[14px] text-slate">Add the people who can use TDPH.</p>
       </div>
 
       <form onSubmit={create} className="card p-5 flex flex-col gap-4">
@@ -85,12 +85,12 @@ export default function Users() {
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_140px_auto] items-end">
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-semibold">Username</span>
-            <input className="field" value={form.username} placeholder="e.g. aisyah.rahman"
+            <input className="field" value={form.username} 
               onChange={(e) => setForm({ ...form, username: e.target.value })} />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-semibold">Name</span>
-            <input className="field" value={form.displayName} placeholder="e.g. Aisyah Rahman"
+            <input className="field" value={form.displayName} 
               onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
           </label>
           <label className="flex flex-col gap-1.5">
@@ -104,7 +104,6 @@ export default function Users() {
             <UserPlus size={16} />Add
           </button>
         </div>
-        <p className="m-0 text-[12px] text-slate">They get a temporary password to sign in with, and choose their own straight away. Admins can also manage users.</p>
       </form>
 
       <TemporaryPassword shown={shown} onClose={() => setShown(null)} />
