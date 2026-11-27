@@ -231,6 +231,15 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
         e.preventDefault();
         itemDelete.remove(activeSlide);
       }
+      // Up/Down move between slides, unless the key belongs to a text being typed in (or a picker / menu).
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.defaultPrevented && !e.altKey && !e.ctrlKey && !e.metaKey
+        && !e.target.closest?.('input, textarea, select, [contenteditable="true"], [role="listbox"], [role="menu"]')) {
+        const to = activeSlide + (e.key === 'ArrowDown' ? 1 : -1);
+        if (to < 0 || to >= (gen?.outline?.slides?.length || 0)) return;
+        e.preventDefault();
+        setActiveSlide(to);
+        navRef.current?.querySelector(`[data-slide-index="${to}"]`)?.scrollIntoView({ block: 'nearest' });
+      }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -436,7 +445,7 @@ export default function Review({ id, reloadKey = 0, addAfter = null, focus = nul
         <nav ref={navRef} className="w-[100px] lg:w-[200px] shrink-0 border-r border-border bg-white overflow-y-auto py-2 px-1.5 lg:px-2">
           <ol className="list-none m-0 p-0 flex flex-col gap-1">
             {slides.map((s, i) => (
-              <li key={i} className="group/item relative">
+              <li key={i} data-slide-index={i} className="group/item relative">
                 <button type="button" onClick={() => setActiveSlide(i)}
                   className={`w-full flex flex-col lg:flex-row gap-1 lg:gap-2 items-center min-h-[40px] px-1 lg:px-1.5 py-1 rounded-lg text-left cursor-pointer border-2 transition-all ${
                     i === activeSlide ? 'border-navy bg-[#F5F8FC] shadow-sm' : 'border-transparent hover:bg-[#F0F4F8] hover:border-[#E2E8F0]'
