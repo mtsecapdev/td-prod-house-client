@@ -16,6 +16,7 @@ const PHASES = {
   writing: 'Writing the new one…',
   planning: 'Planning the changes…',
   skill: 'Reading the conversation…',
+  starting: 'Reading your documents…',
   interview: 'Reading your answer…',
   planning_interview: 'Working on it…',
   imaging: 'Planning the image…',

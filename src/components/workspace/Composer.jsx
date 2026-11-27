@@ -17,15 +17,20 @@ const SKILLS = [
   { type: 'image', label: 'Image', icon: Image, desc: 'An illustration for your slides', tint: 'bg-[#F3EEFB] text-[#6D28D9]' },
 ];
 
+// A deck or document starts its planning questions as soon as it is chosen (the first already drawn from the
+// documents); an image waits for a description, so choosing it is a mode of the box.
+const STARTS_AT_ONCE = new Set(['deck', 'doc']);
+
 /**
- * The message box. Modes: asking about the documents; making a deck/document (a skill chip was pressed); or,
- * while one is open beside the chat, changing it: the selected slide, the whole thing, or a new slide.
+ * The message box. Modes: asking about the documents; describing an image (its chip was pressed); or, while a
+ * deck/document is open beside the chat, changing it: the selected slide, the whole thing, or a new slide.
+ * Choosing a deck or document calls onStartSkill(type) straight away.
  *
  * edit: null, or { type, noun, product, scope: 'item' | 'all' | 'add', index, after } for the open deck/document.
  */
 export default function Composer({
   docs, docIds, onDocIdsChange, onDocsChanged,
-  skill, onSkill, edit, onEditScope, onStopEditing,
+  skill, onSkill, onStartSkill, edit, onEditScope, onStopEditing,
   disabled, onSend, variant = 'docked', answering = false,
 }) {
   const hero = variant === 'hero';
@@ -38,11 +43,17 @@ export default function Composer({
   const commands = typed ? COMMANDS.filter((c) => c.cmd.startsWith(typed[1].toLowerCase()) && (!c.editingOnly || edit)) : [];
   const menuOpen = commands.length > 0;
 
+  // A skill chosen: a deck or document starts now, an image waits for its description.
+  function chooseSkill(type) {
+    if (STARTS_AT_ONCE.has(type)) onStartSkill(type);
+    else onSkill(skill === type ? null : type);
+  }
+
   function runCommand(c, rest = '') {
-    if (c.skill) onSkill(c.skill);
-    else onStopEditing();
-    setText(rest);
+    setText(c.skill && STARTS_AT_ONCE.has(c.skill) ? '' : rest);
     setPicked(0);
+    if (c.skill) chooseSkill(c.skill);
+    else onStopEditing();
   }
 
   useEffect(() => {
@@ -56,18 +67,15 @@ export default function Composer({
   useEffect(() => { ref.current?.focus(); }, [skill, edit?.scope, edit?.after]);
 
   const skillInfo = SKILLS.find((s) => s.type === skill);
-  // In a chat, a skill can work from what was discussed; on the start screen there is nothing to use yet.
-  const fromChat = hero ? '' : ' Leave empty to use what we\'ve discussed.';
+  // In a chat, an image can be drawn from what was discussed; on the start screen there is nothing to use yet.
   const placeholder = answering && !skill && !edit ? 'Type your answer, or pick one above'
     : skill === 'image'
-    ? `What should the image show?${fromChat}`
-    : skillInfo
-      ? `What should the ${skillInfo.label.toLowerCase()} cover?${fromChat}`
+    ? `What should the image show?${hero ? '' : ' Leave empty to use what we\'ve discussed.'}`
     : edit?.scope === 'add' ? `Describe the new ${edit.noun}`
       : edit?.scope === 'item' ? `What should change on ${edit.noun} ${edit.index + 1}?`
         : edit?.scope === 'all' ? `What should change across the ${edit.product}?`
           : 'Ask about your documents';
-  // In a chat, a skill can start from the conversation alone; everything else needs words.
+  // In a chat, an image can start from the conversation alone; everything else needs words.
   const canSend = !disabled && (text.trim() || (skill && !hero));
 
   function submit(e) {
@@ -169,8 +177,8 @@ export default function Composer({
           {SKILLS.map((s) => {
             const on = skill === s.type;
             return (
-              <button key={s.type} type="button" onClick={() => onSkill(on ? null : s.type)} aria-pressed={on}
-                className={`group flex items-center gap-3 p-3 rounded-xl text-left cursor-pointer border transition-all ${
+              <button key={s.type} type="button" onClick={() => chooseSkill(s.type)} aria-pressed={on} disabled={disabled}
+                className={`group flex items-center gap-3 p-3 rounded-xl text-left cursor-pointer border transition-all disabled:opacity-60 disabled:cursor-default ${
                   on ? 'border-navy bg-white ring-2 ring-navy/15 shadow-sm' : 'border-[#D9E1EC] bg-white/80 hover:bg-white hover:border-[#C7D3E3] hover:shadow-sm'}`}>
                 <span className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center ${s.tint}`}><s.icon size={19} /></span>
                 <span className="min-w-0">
@@ -185,8 +193,8 @@ export default function Composer({
       {!edit && !hero && (
         <div className="flex items-center gap-2 flex-wrap">
           {SKILLS.map((s) => (
-            <button key={s.type} type="button" onClick={() => onSkill(skill === s.type ? null : s.type)} aria-pressed={skill === s.type}
-              className={`${chip} ${skill === s.type ? 'border-navy bg-[#EAF0F8] text-navy font-semibold' : 'border-[#D9E1EC] bg-white text-ink hover:bg-[#F6F8FB] hover:border-[#C7D3E3]'}`}>
+            <button key={s.type} type="button" onClick={() => chooseSkill(s.type)} aria-pressed={skill === s.type} disabled={disabled}
+              className={`${chip} disabled:opacity-60 disabled:cursor-default ${skill === s.type ? 'border-navy bg-[#EAF0F8] text-navy font-semibold' : 'border-[#D9E1EC] bg-white text-ink hover:bg-[#F6F8FB] hover:border-[#C7D3E3]'}`}>
               <s.icon size={14} className={skill === s.type ? '' : 'text-slate'} />{s.label}
             </button>
           ))}

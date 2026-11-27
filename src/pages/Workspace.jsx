@@ -125,7 +125,7 @@ export default function Workspace() {
     const answering = !forced && !skill_ && interviewQuestion;
     const mode = forced ? 'edit' : skill_ ? 'skill' : answering ? 'ask' : editing ? 'edit' : 'ask';
     const scope = forced ? 'item' : editing?.scope;
-    setPending({ content: text, phase: answering ? 'interview' : mode === 'skill' ? (skill_ === 'image' ? 'imaging' : 'skill') : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
+    setPending({ content: text, phase: answering ? 'interview' : mode === 'skill' ? (skill_ === 'image' ? 'imaging' : 'starting') : mode === 'ask' ? 'rewriting' : scope === 'add' ? 'writing' : scope === 'all' ? 'planning' : 'editing' });
     try {
       let conv = conversation;
       if (!conv) {
@@ -215,7 +215,7 @@ export default function Workspace() {
       )}
       <Composer variant={variant}
         docs={docs} docIds={docIds} onDocIdsChange={setDocIds} onDocsChanged={docsChanged}
-        skill={skill} onSkill={setSkill}
+        skill={skill} onSkill={setSkill} onStartSkill={(type) => { setSkill(null); send('', null, type); }}
         edit={editing}
         onEditScope={(scope) => setPanel((p) => ({ ...p, scope }))}
         onStopEditing={() => setPanel((p) => ({ ...p, scope: null, addAfter: null }))}
